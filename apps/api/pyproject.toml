@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "customer-intelligence-api"
+version = "0.1.0"
+description = "FastAPI and agent foundation for customer intelligence"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "pydantic>=2.10,<3",
+  "pydantic-settings>=2.7,<3",
+  "python-multipart>=0.0.20,<1",
+  "python-dotenv>=1,<2",
+  "httpx>=0.28,<1",
+  "pandas>=2.2,<4",
+  "numpy>=2,<3",
+  "scikit-learn>=1.6,<2",
+  "xgboost>=3,<4",
+  "joblib>=1.4,<2",
+  "openpyxl>=3.1,<4",
+  "sqlmodel>=0.0.24,<1",
+  "openai>=1.70,<3",
+  "langchain>=1,<2",
+  "langchain-openai>=1,<2",
+  "langgraph>=1,<2",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-cov>=6,<8", "ruff>=0.12,<1", "mypy>=1.15,<2", "pandas-stubs>=2.2", "build>=1.2,<2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/customer_intelligence"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.13"
+check_untyped_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+warn_unused_ignores = true

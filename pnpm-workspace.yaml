@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  esbuild: true
+storeDir: .pnpm-store
+saveExact: true
+verifyDepsBeforeRun: error

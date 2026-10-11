@@ -1,0 +1,9 @@
+node_modules
+.tooling
+.venv
+.data
+dist
+.turbo
+pnpm-lock.yaml
+**/uv.lock
+**/requirements*.txt

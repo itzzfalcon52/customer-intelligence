@@ -1,0 +1,25 @@
+{
+  "name": "customer-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=11"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:web": "pnpm --filter @ci/web dev",
+    "dev:api": "pnpm --filter @ci/api dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "setup:python": "node scripts/setup-python.mjs"
+  },
+  "devDependencies": {
+    "turbo": "2.11.7",
+    "prettier": "^3.6.2"
+  }
+}
