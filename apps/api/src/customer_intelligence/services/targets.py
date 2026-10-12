@@ -26,14 +26,12 @@ def check_target(
 
     if missing_count:
         blockers.append(
-            f"The target contains {missing_count} missing labels. "
-            "Resolve them before training."
+            f"The target contains {missing_count} missing labels. Resolve them before training."
         )
 
     if class_count != 2:
         blockers.append(
-            f"Binary classification requires exactly two classes; "
-            f"this column has {class_count}."
+            f"Binary classification requires exactly two classes; this column has {class_count}."
         )
 
     if request.positive_label not in counts.index:
@@ -51,9 +49,7 @@ def check_target(
         positive_label=request.positive_label,
         missing_label_count=missing_count,
         distinct_class_count=class_count,
-        class_counts={
-            str(label): int(count) for label, count in counts.head(20).items()
-        },
+        class_counts={str(label): int(count) for label, count in counts.head(20).items()},
         class_counts_truncated=class_count > 20,
         label_mapping=label_mapping,
         target_valid=not blockers,

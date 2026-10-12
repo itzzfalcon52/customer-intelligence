@@ -1,4 +1,5 @@
 import argparse
+import sys
 from uuid import UUID
 
 import sklearn
@@ -6,12 +7,14 @@ from sqlmodel import Session
 
 from customer_intelligence.core.config import get_settings
 from customer_intelligence.core.database import engine
-from customer_intelligence.ml.evaluation import compare_models, evaluate_binary
+from customer_intelligence.ml.evaluation import evaluate_binary, fit_and_compare_models
 from customer_intelligence.models.dataset import Dataset
 from customer_intelligence.models.task import Task
 from customer_intelligence.schemas.comparison import ComparisonReport
 from customer_intelligence.schemas.split import SplitArtifact
+from customer_intelligence.schemas.task import TaskResponse
 from customer_intelligence.services.profiling import load_dataset_frame
+from customer_intelligence.services.runs import save_training_run
 from customer_intelligence.services.splits import prepare_split
 
 
@@ -30,8 +33,10 @@ def check_metrics() -> None:
     assert constant.recall == 0.0
 
 
-def main(task_id: UUID) -> None:
+def main(task_id: UUID, save: bool = False) -> None:
     check_metrics()
+    if (get_settings().data_directory / "finalized_tasks" / f"{task_id}.json").exists():
+        raise ValueError("This task revealed final test results and is frozen.")
     settings = get_settings()
     path = settings.data_directory / "splits" / f"{task_id}.json"
 
@@ -54,14 +59,12 @@ def main(task_id: UUID) -> None:
         training = frame.iloc[artifact.row_assignments["train"]]
         validation = frame.iloc[artifact.row_assignments["validation"]]
 
-        training_labels = [
-            task.label_mapping[str(value)] for value in training[task.target_column]
-        ]
+        training_labels = [task.label_mapping[str(value)] for value in training[task.target_column]]
         validation_labels = [
             task.label_mapping[str(value)] for value in validation[task.target_column]
         ]
 
-        results = compare_models(
+        comparison = fit_and_compare_models(
             training=training.loc[:, task.feature_columns],
             training_labels=training_labels,
             validation=validation.loc[:, task.feature_columns],
@@ -69,6 +72,7 @@ def main(task_id: UUID) -> None:
             feature_columns=list(task.feature_columns),
             random_seed=task.random_seed,
         )
+        results = comparison.results
         best = max(results, key=lambda result: result.validation.average_precision)
 
         report = ComparisonReport(
@@ -84,7 +88,21 @@ def main(task_id: UUID) -> None:
             training_row_count=len(training),
             best_validation_model=best.model_name,
             results=results,
+            failures=comparison.failures,
+            best_validation_candidate_id=best.candidate_id,
         )
+
+    if save:
+        destination = save_training_run(
+            data_directory=settings.data_directory,
+            pipeline=comparison.best_pipeline,
+            report=report,
+            task=TaskResponse.model_validate(task),
+            split=artifact,
+            verification_rows=validation.loc[:, task.feature_columns].head(20),
+        )
+        print(f"Saved run: {destination.name}", file=sys.stderr)
+        print(f"Artifacts: {destination}", file=sys.stderr)
 
     print(report.model_dump_json(indent=2))
 
@@ -92,6 +110,6 @@ def main(task_id: UUID) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("task_id", type=UUID)
+    parser.add_argument("--save", action="store_true")
     arguments = parser.parse_args()
-    main(arguments.task_id)
-    
+    main(arguments.task_id, save=arguments.save)

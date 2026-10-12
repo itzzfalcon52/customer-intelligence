@@ -16,7 +16,9 @@
     "check-types": "turbo run check-types",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "setup:python": "node scripts/setup-python.mjs"
+    "setup:python": "node scripts/setup-python.mjs",
+    "worker:api": "pnpm --filter @ci/api worker",
+    "test:api": "pnpm --filter @ci/api test"
   },
   "devDependencies": {
     "turbo": "2.11.7",

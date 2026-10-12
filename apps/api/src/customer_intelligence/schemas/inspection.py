@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class InspectDatasetArguments(BaseModel):
@@ -20,3 +20,17 @@ class InspectionResult(BaseModel):
     answer: str
     completed_tools: list[str]
     model_call_count: int
+
+
+class InspectionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    dataset_id: UUID
+    task_id: UUID | None = None
+    question: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Question cannot be blank.")
+        return value.strip()

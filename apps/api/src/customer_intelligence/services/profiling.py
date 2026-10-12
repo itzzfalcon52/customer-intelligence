@@ -91,10 +91,7 @@ def build_profile(
 
     for _, row in frame.head(5).iterrows():
         preview.append(
-            {
-                str(name): None if pd.isna(value) else str(value)
-                for name, value in row.items()
-            }
+            {str(name): None if pd.isna(value) else str(value) for name, value in row.items()}
         )
 
     return DatasetProfileResponse(
@@ -126,7 +123,6 @@ def load_dataset_frame(
 
         if len(content) > MAX_UPLOAD_BYTES:
             raise DatasetProfileError("The stored dataset exceeds the size limit.")
-        
 
         if expected_sha256 is not None and sha256(content).hexdigest() != expected_sha256:
             raise DatasetChangedError(
@@ -147,9 +143,7 @@ def load_dataset_frame(
         frame = pd.DataFrame(rows, columns=headers, dtype="string")
 
     except (OSError, DatasetUploadError, csv.Error) as exc:
-        raise DatasetProfileError(
-            "The stored CSV could not be read or validated."
-        ) from exc
+        raise DatasetProfileError("The stored CSV could not be read or validated.") from exc
 
     return frame.replace(r"^\s*$", pd.NA, regex=True)
 

@@ -68,9 +68,7 @@ def create_task(
             raise TaskValidationError(f"Feature column '{name}' does not exist.")
 
         if frame[name].dropna().nunique() <= 1:
-            raise TaskValidationError(
-                f"Feature '{name}' is empty or constant. Exclude it."
-            )
+            raise TaskValidationError(f"Feature '{name}' is empty or constant. Exclude it.")
 
     path = settings.data_directory / "uploads" / dataset.storage_key
 

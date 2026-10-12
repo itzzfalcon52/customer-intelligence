@@ -1,6 +1,6 @@
 # Customer Intelligence — Product and Development Roadmap
 
-Prepared October 11, 2026. This is a proposed development plan, not a description of completed functionality.
+Updated October 11, 2026. The P0/P1 backend is implemented; product screens and P2 remain planned. Sections below describe product intent as well as future work; the current-state section and backend walkthrough are authoritative for shipped behavior.
 
 ## 1. What we are building
 
@@ -25,22 +25,32 @@ A high risk score does not establish that an offer will prevent churn. Offer eff
 
 ## 2. Current state and scope
 
-### What exists now
+### Implemented backend
 
-- Turborepo workspace using pnpm.
-- React, Vite, and TypeScript frontend with a simple placeholder page.
-- A FastAPI application entry point, with automatic API documentation and no product routes.
-- Installed frontend and backend libraries, Python requirements files, and dependency lockfiles.
-- Empty backend packages and frontend folders for future implementation.
-- Development, build, lint, and type-check commands.
+The user authorized completing P0 and P1 backend features. Upload/profile/readiness/tasks,
+train-only preprocessing, saved splits, four model families, bounded search, jobs/recovery/cancellation,
+trusted pipeline persistence, frozen test evaluation, scoring/ranking/export, and agent context are
+implemented. P1 includes XLSX import, leakage showcase, validation importance, customer sensitivity,
+contact curves, numeric heuristics, value priority, evidence paths, HTML reports, calibration,
+segments, conversations and run comparison. See [docs/backend.md](docs/backend.md) for runnable
+requests and exact limits; [README.md](README.md) has startup/demo/check commands.
 
-### What does not exist yet
+**Current constraints:** one private local workspace; binary classification on one static customer
+table; stratified random evaluation; one supervised CPU worker on macOS/Linux. Calibration is
+optional sigmoid calibration on development data. Customer explanations use reference perturbations,
+not SHAP. Contact/segment curves are returned as JSON for frontend rendering. The assistant uses
+one bounded SDK tool loop, not LangChain/LangGraph or vector retrieval. Tests mock the provider.
 
-Uploads, dataset profiling, training, scoring, persistence, agents, job execution, product screens, authentication, tests, and deployment are all future work. A library being installed does not mean its corresponding feature exists.
+### Remaining product work
 
-**First supported ML task:** binary classification of a documented churn label on one customer table. Start with CSV. Add Excel and other business tasks later.
+The React/Vite frontend is still a skeleton. Upload/goal forms, plots, job progress/cancellation UI,
+report/history screens and evidence navigation must be wired to the real backend. Public deployment,
+real identity/tenancy, chronological/grouped evaluation and P2 integrations are not implemented.
+Backend completion is not hackathon submission completion or proof of startup demand.
 
-Planning assumes one main builder with prior deep-learning experience and conceptual GenAI/LangChain knowledge. The second teammate is primarily occupied with another hackathon; the critical path should not depend on their availability.
+Start with `pnpm dev:api` plus `pnpm worker:api`, run `apps/api/demo.py`, then build the frontend
+around that working journey. Preserve existing saved Telco data; use fresh synthetic demo records
+when learning or checking final test behavior.
 
 ## 3. Priority rules
 
@@ -224,7 +234,7 @@ flowchart LR
     Worker --> Files
 ```
 
-The architecture is proposed. The diagram does not imply any of these product components already exist.
+Backend components in the diagram are implemented. Web product screens and external/P2 integrations remain planned.
 
 | Component                    | Responsibility                                           | Existing libraries                             |
 | ---------------------------- | -------------------------------------------------------- | ---------------------------------------------- |
@@ -274,33 +284,40 @@ AGENTS.md              Codex repository context and working rules
 
 Add concrete files when their milestone needs them. A generated `packages/api-client` can be added later when API contracts stabilize; it does not exist now. Add tests and demo fixtures with their relevant milestones.
 
-## 7. Proposed API and persistence contracts
+## 7. Implemented API and persistence contracts
 
-All endpoints below are future interfaces, not available routes. Prefer an `/api/v1` prefix, which is compatible with the current Vite `/api` proxy because it does not rewrite paths.
+See [docs/backend.md](docs/backend.md) and interactive `/docs` for exact schemas and paths.
+Dataset, Task, Job, Conversation/Turn and AssistantLease are SQLite entities. Run/score/analysis
+manifests and fitted models live in ignored application-owned files.
 
-| Method and path                     | Purpose                                                   |
-| ----------------------------------- | --------------------------------------------------------- |
-| `GET /api/v1/health`                | Minimal service readiness response                        |
-| `POST /api/v1/datasets`             | Upload and register a CSV                                 |
-| `GET /api/v1/datasets/{id}`         | Metadata and bounded preview                              |
-| `GET /api/v1/datasets/{id}/profile` | Computed data profile                                     |
-| `DELETE /api/v1/datasets/{id}`      | Defined deletion of data and dependent artifacts          |
-| `POST /api/v1/task-specs`           | Persist confirmed prediction task                         |
-| `POST /api/v1/plans`                | Validate/store the experiment plan                        |
-| `POST /api/v1/jobs`                 | Submit a permitted plan; return `202` and job ID          |
-| `GET /api/v1/jobs/{id}`             | Poll status, progress, and result reference               |
-| `POST /api/v1/jobs/{id}/cancel`     | Request cancellation; add when supported                  |
-| `GET /api/v1/runs/{id}`             | Leaderboard, selected model, metrics, provenance          |
-| `POST /api/v1/scores`               | Score a dataset with a saved model; job-based when needed |
-| `GET /api/v1/scores/{id}/customers` | Paginated ranked customers and contact limit              |
-| `GET /api/v1/scores/{id}/export`    | Download permitted score/shortlist CSV                    |
-| `POST /api/v1/assistant/messages`   | Bounded assistant interaction with workspace context      |
+| Route                                     | Purpose                                            |
+| ----------------------------------------- | -------------------------------------------------- |
+| `POST /api/v1/datasets/upload`            | CSV/XLSX import                                    |
+| `GET /api/v1/datasets/{id}/profile`       | Bounded preview and computed profile               |
+| `POST /api/v1/datasets/{id}/target-check` | Binary target readiness                            |
+| `POST /api/v1/datasets/{id}/tasks`        | Save confirmed immutable task                      |
+| `GET /api/v1/tasks/{id}/plan`             | Review experiment configuration                    |
+| `POST /api/v1/jobs/train`                 | Queue training and optional bounded search         |
+| `POST /api/v1/jobs/evaluate`              | Freeze and evaluate the selected run on final test |
+| `POST /api/v1/jobs/score`                 | Score a separate uploaded customer dataset         |
+| `POST /api/v1/jobs/diagnostics`           | Importance, curves, segments and heuristic         |
+| `POST /api/v1/jobs/calibrate`             | Save a calibrated pipeline before final evaluation |
+| `POST /api/v1/jobs/explain`               | Customer sensitivity analysis                      |
+| `POST /api/v1/jobs/leakage-demo`          | Validation-only teaching experiment                |
+| `GET /api/v1/jobs/{id}`                   | Durable status, stage and result ID                |
+| `POST /api/v1/jobs/{id}/cancel`           | Cancel queued/running work                         |
+| `GET /api/v1/runs/{id}`                   | Measured comparison and calibration metadata       |
+| `POST /api/v1/runs/compare`               | Flag incompatible runs before comparison           |
+| `GET /api/v1/runs/{id}/report`            | Download HTML experiment report                    |
+| `GET /api/v1/analyses/{id}`               | Stored diagnostic evidence                         |
+| `GET /api/v1/scores/{id}/customers`       | Paginated ranked customers                         |
+| `GET /api/v1/scores/{id}/export`          | Full or top-k CSV                                  |
+| `POST /api/v1/assistant/messages`         | Bounded evidence-linked assistant                  |
+| `DELETE /api/v1/datasets/{id}`            | Dependency-aware deletion, optional cascade        |
 
-Use one consistent error shape, such as `code`, `message`, `details`, and `request_id`. Choose response shapes before making the corresponding frontend page. Do not create every endpoint at once.
-
-Suggested metadata entities: Workspace, Dataset, TaskSpec, ExperimentPlan, Job, Run, ModelArtifact, ScoreSet, Conversation, and ToolEvent. Introduce only the entities needed by the current milestone. Save resource relationships so results remain attributable to a dataset and plan.
-
-Store input files, generated scores, and trusted model artifacts outside Git under ignored application-owned storage. Resolve opaque resource IDs server-side. Never load arbitrary user-uploaded pickle/joblib artifacts.
+Catalog/history and saved-conversation routes are documented in the walkthrough. Compute jobs use
+UUID idempotency keys. Errors return code/message/request ID where available. No arbitrary uploaded
+pickle is loaded. This is a single private workspace; multi-tenant ownership is future deployment work.
 
 ## 8. Agent design explained
 
@@ -340,9 +357,12 @@ Tool events should expose tool name, status, timing, and safe result summaries. 
 
 Check a valid dataset question, missing target, one-class target, suspicious leakage field, incomplete user intent, unknown dataset ID, unauthorized resource ID, invalid tool arguments, a failed training job, a repeated start request, prompt injection in a cell, provider timeout, and an exhausted tool budget. The correct result may be a clarification or refusal to run an invalid plan.
 
-## 9. Where to start: first two working sessions
+## 9. Learning sequence retained from the original plan
 
-### Session 1 — Understand the skeleton and define one dataset
+The backend tasks in these original sessions are now implemented. Use them as a learning checklist;
+start new implementation with the frontend against the real API.
+
+### Session 1 — Understand the data contract
 
 1. Read `README.md`, this roadmap, and `AGENTS.md`.
 2. Start the two apps with `pnpm dev`; open the frontend and backend `/docs`.
@@ -365,7 +385,7 @@ Do not start LangChain, chat UI, or model search in this session. The first usef
 
 **First milestone:** “I can upload a CSV, see what is in it, and learn why it can or cannot proceed.” Finish this before training or agent work.
 
-## 10. Development milestones and suggested order
+## 10. Original milestone sequence and remaining frontend work
 
 Estimates are focused working sessions, not fixed calendar deadlines. Time per session and the hackathon deadline have not been confirmed here. Expect roughly 12–16 sessions for an initial build, with additional time for unfamiliar integration/debugging. Reduce scope if fewer sessions are available.
 
@@ -390,7 +410,7 @@ Keep CSV only, use one sample dataset, fix the experiment configurations, skip p
 
 ## 11. Verification strategy
 
-The skeleton currently has no product tests and no root `pnpm test` script. pytest and Vitest are installed for future focused checks.
+Backend tests now exist in `apps/api/tests`; run `pnpm test:api`. They use synthetic temporary data and mocked provider responses. The table below remains guidance for extending coverage; frontend tests await frontend implementation.
 
 | Area           | Meaningful checks to add when implemented                                                                                  |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -465,4 +485,4 @@ Example first implementation request:
 
 > Read AGENTS.md and roadmap.md. Implement only M1: a CSV upload endpoint, deterministic dataset profile, persisted dataset metadata, and a minimal React upload/preview flow. Include useful errors and focused upload/profile checks. Do not add training, scoring, agents, or extra screens. Explain the implementation and how I can verify it.
 
-The next authorized work is that first milestone only when you request it. This document is planning, not permission to build the entire backlog.
+The authorized P0/P1 backend pass is complete. The next suggested work is frontend integration when requested; the P2 backlog is not authorization for external integrations, outreach or deployment.

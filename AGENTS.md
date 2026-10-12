@@ -4,7 +4,7 @@
 
 This file gives Codex repository context and working instructions. Read `README.md` for setup and `roadmap.md` for the detailed product plan. Follow the user's current request; the roadmap is a backlog, not authorization to implement all features.
 
-Read AGENTS.md and roadmap.md. Stay in read-only mode. Teach me one step at a time. Provide exact file paths, complete code for small files or precise replacements for larger files, a short explanation, and verification commands with expected output. I will edit files and run commands myself. Review my changes afterward.
+The user authorized direct implementation and testing of the complete P0 and P1 backend on October 11, 2026. Preserve user work and data. Explain progress and verify behavior. Frontend, deployment, and P2 integrations remain outside this authorization.
 
 ## Product context
 
@@ -14,17 +14,20 @@ Automated model comparison is an AutoML component. Proposed product value is the
 
 The main builder has trained deep-learning models and learned GenAI/LangChain concepts but has not implemented an agentic project. Explain unfamiliar decisions plainly. A second teammate is mostly working on another hackathon, so do not assume a two-person implementation capacity.
 
-## Repository state at documentation creation
+## Current repository state (October 11, 2026)
 
-- Turborepo/pnpm workspace with `apps/web` and `apps/api`.
-- Frontend: React/Vite/TypeScript placeholder, with empty components/pages/hooks/lib folders.
-- Backend: `src/customer_intelligence/main.py` creates a FastAPI app; there are no product routes.
-- Backend API/core/schemas/models/repositories/services/agent/ml/worker packages are empty.
-- Dependencies and lockfiles exist; the local environments are installed.
-- No upload, profiling, training, scoring, database workflow, worker, agent, or product tests are implemented.
-- `packages/` is reserved; no generated API client exists.
-
-Verify the actual files before acting, and update this state summary when an authorized milestone changes it. Avoid turning this file into a running transcript.
+- Working P0/P1 backend: upload/profile/tasks, reproducible splits/preprocessing, four model families,
+  bounded search, durable supervised jobs, model persistence, final evaluation, scoring/export.
+- P1: Excel, importance/sensitivity, contact curves, heuristic/segments, value priority, calibration,
+  leakage demo, reports, run comparison, conversations and evidence-linked agent.
+- SQLite metadata plus ignored `.data` artifacts; preserve existing customer files/runs.
+- One private local workspace with optional bearer token; macOS/Linux worker. No multi-tenant/public
+  deployment, time/group splits, regression or P2 integrations.
+- React/Vite remains a frontend skeleton. No product screens have been implemented in this pass.
+- Tests in `apps/api/tests`, runnable demo `apps/api/demo.py`, contracts at `/docs` and walkthrough
+  `docs/backend.md`. Agent tests mock the provider; do not call live Nebius without reason.
+- Existing `check_*.py` learning scripts remain available. Pipeline artifacts fingerprint
+  `ml/preprocessing.py`; editing/formatting it invalidates older pipelines, so assess compatibility.
 
 ## Stack and commands
 
@@ -46,7 +49,7 @@ pnpm format:check
 
 `pnpm dev` starts web at `http://127.0.0.1:5173` and API at `http://127.0.0.1:8000`; API docs are `/docs`. The Vite proxy forwards `/api` unchanged, so future backend routes should agree with their frontend prefix, preferably `/api/v1`.
 
-`scripts/python.mjs` bridges Turbo to Python dev/build/lint/type commands. There is currently no root `pnpm test` script and no product test suite. pytest/Vitest are installed; add and document focused tests when the requested implementation warrants them. Do not report absent tests as passing.
+`scripts/python.mjs` bridges Python commands. Run `pnpm worker:api` in a separate terminal and `pnpm test:api` for isolated backend tests. No frontend product test suite exists. Do not report provider mocks as a live provider verification.
 
 ## Code placement and architecture
 
@@ -101,6 +104,6 @@ Before public hosting, implement real identity/session validation and suitable d
 6. Update relevant setup/roadmap/context documentation when implemented behavior changes. Distinguish completed features from planned ones.
 7. Never claim GitHub publication, cloud deployment, tests, or provider integration succeeded without verifying the result. Do not commit/push/create remote repositories unless the user has authorized it for the task.
 
-Next suggested milestone is M1 in `roadmap.md`: CSV upload and deterministic profiling with a minimal frontend flow. Implement it only when requested.
+Next milestone is the frontend workflow against the real backend contracts, only when requested. Read `docs/backend.md` before changing jobs/evaluation/agent boundaries. All numerical claims must come from computed evidence. Do not broaden task types or deploy as part of a frontend request.
 
 This file uses the standard uppercase filename for project instructions; see the [official AGENTS.md guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md).

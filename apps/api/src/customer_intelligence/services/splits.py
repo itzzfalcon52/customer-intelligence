@@ -2,6 +2,7 @@ import json
 from hashlib import sha256
 from uuid import uuid4
 
+import pandas as pd
 import sklearn
 
 from customer_intelligence.core.config import Settings
@@ -49,7 +50,7 @@ def prepare_split(
     summaries: dict[str, PartitionSummary] = {}
 
     for name, positions in partitions.items():
-        counts = frame[task.target_column].iloc[positions].value_counts()
+        counts = frame[task.target_column].iloc[pd.Index(positions)].value_counts()
         summaries[name] = PartitionSummary(
             row_count=len(positions),
             class_counts={str(label): int(count) for label, count in counts.items()},
@@ -67,9 +68,7 @@ def prepare_split(
     )
 
     configuration = TaskResponse.model_validate(task).model_dump(mode="json")
-    fingerprint = sha256(
-        json.dumps(configuration, sort_keys=True).encode("utf-8")
-    ).hexdigest()
+    fingerprint = sha256(json.dumps(configuration, sort_keys=True).encode("utf-8")).hexdigest()
 
     artifact = SplitArtifact(
         task_fingerprint=fingerprint,
@@ -84,9 +83,7 @@ def prepare_split(
 
     if destination.exists():
         try:
-            existing = SplitArtifact.model_validate_json(
-                destination.read_text(encoding="utf-8")
-            )
+            existing = SplitArtifact.model_validate_json(destination.read_text(encoding="utf-8"))
         except ValueError as exc:
             raise SplitValidationError("The saved split file is invalid.") from exc
 

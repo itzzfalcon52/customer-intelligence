@@ -6,6 +6,8 @@
     "dev": "node ../../scripts/python.mjs dev",
     "build": "node ../../scripts/python.mjs build",
     "lint": "node ../../scripts/python.mjs lint",
-    "check-types": "node ../../scripts/python.mjs check-types"
+    "check-types": "node ../../scripts/python.mjs check-types",
+    "worker": "node ../../scripts/python.mjs worker",
+    "test": "node ../../scripts/python.mjs test"
   }
 }

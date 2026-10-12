@@ -31,6 +31,7 @@ def upload_dataset(
     file: Annotated[UploadFile, File()],
     session: Annotated[Session, Depends(get_session)],
     settings: Annotated[Settings, Depends(get_settings)],
+    sheet_name: str | None = None,
 ) -> DatasetUploadResponse:
     try:
         dataset = save_dataset(
@@ -38,6 +39,7 @@ def upload_dataset(
             filename=file.filename,
             settings=settings,
             session=session,
+            sheet_name=sheet_name,
         )
     except DatasetLimitError as exc:
         raise HTTPException(

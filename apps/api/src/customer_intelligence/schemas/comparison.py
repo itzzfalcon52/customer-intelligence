@@ -3,7 +3,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-ModelName = Literal["dummy_prior", "logistic_regression"]
+ModelName = Literal[
+    "dummy_prior",
+    "logistic_regression",
+    "random_forest",
+    "xgboost",
+]
 
 
 class BinaryMetrics(BaseModel):
@@ -22,8 +27,17 @@ class BinaryMetrics(BaseModel):
     true_positive: int
 
 
+class ModelFailure(BaseModel):
+    model_name: ModelName
+    candidate_id: str
+    error: str
+    elapsed_seconds: float
+
+
 class ModelResult(BaseModel):
     model_name: ModelName
+    candidate_id: str = ""
+    elapsed_seconds: float = 0
     parameters: dict[str, int | float | str]
     validation: BinaryMetrics
     warnings: list[str] = Field(default_factory=list)
@@ -45,4 +59,7 @@ class ComparisonReport(BaseModel):
     classification_threshold: float = 0.5
     best_validation_model: ModelName
     results: list[ModelResult]
+    best_validation_candidate_id: str | None = None
+    failures: list[ModelFailure] = Field(default_factory=list)
+    selection_warning: str | None = None
     test_evaluated: Literal[False] = False

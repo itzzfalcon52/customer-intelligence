@@ -1,4 +1,5 @@
 import json
+from collections.abc import Callable
 from uuid import UUID
 
 from openai import APIError, OpenAI
@@ -95,7 +96,6 @@ def inspect_dataset(dataset_id: UUID) -> str:
     return content
 
 
-
 def read_task(task_id: UUID, dataset_id: UUID) -> str:
     with Session(engine) as session:
         task = session.get(Task, task_id)
@@ -157,6 +157,7 @@ def run_inspection(
     dataset_id: UUID,
     question: str,
     task_id: UUID | None = None,
+    tool_executor: Callable[[str, str, UUID, UUID | None], str] | None = None,
 ) -> InspectionResult:
     if not question.strip() or len(question) > 2000:
         raise AgentInspectionError("Provide a question between 1 and 2000 characters.")
@@ -175,7 +176,10 @@ def run_inspection(
 
     if task_id is not None:
         # Reject missing tasks or dataset mismatches before spending provider credits.
-        read_task(task_id, dataset_id)
+        if tool_executor:
+            tool_executor("read_task", json.dumps({"task_id": str(task_id)}), dataset_id, task_id)
+        else:
+            read_task(task_id, dataset_id)
 
         tools.append(
             {
@@ -282,7 +286,7 @@ def run_inspection(
             if call.function.name in completed_tools:
                 raise AgentInspectionError("The model requested the same tool twice.")
 
-            content = execute_tool(
+            content = (tool_executor or execute_tool)(
                 call.function.name,
                 call.function.arguments,
                 dataset_id,

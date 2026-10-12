@@ -14,7 +14,6 @@ MAX_ROWS = 50_000
 MAX_COLUMNS = 250
 
 
-
 class DatasetUploadError(ValueError):
     pass
 
@@ -27,9 +26,7 @@ def validate_csv(content: bytes) -> tuple[int, int]:
     try:
         text = content.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
-        raise DatasetUploadError(
-            "The CSV must use UTF-8 encoding."
-        ) from exc
+        raise DatasetUploadError("The CSV must use UTF-8 encoding.") from exc
 
     if not text.strip():
         raise DatasetUploadError("The CSV is empty.")
@@ -56,9 +53,7 @@ def validate_csv(content: bytes) -> tuple[int, int]:
         column_count = len(headers)
 
         if column_count > MAX_COLUMNS:
-            raise DatasetLimitError(
-                f"The CSV can contain at most {MAX_COLUMNS} columns."
-            )
+            raise DatasetLimitError(f"The CSV can contain at most {MAX_COLUMNS} columns.")
 
         row_count = 0
 
@@ -75,9 +70,7 @@ def validate_csv(content: bytes) -> tuple[int, int]:
             row_count += 1
 
             if row_count > MAX_ROWS:
-                raise DatasetLimitError(
-                    f"The CSV can contain at most {MAX_ROWS:,} data rows."
-                )
+                raise DatasetLimitError(f"The CSV can contain at most {MAX_ROWS:,} data rows.")
 
     except csv.Error as exc:
         raise DatasetUploadError(
@@ -96,11 +89,12 @@ def save_dataset(
     filename: str | None,
     settings: Settings,
     session: Session,
+    sheet_name: str | None = None,
 ) -> Dataset:
     original_filename = Path((filename or "").replace("\\", "/")).name
 
-    if not original_filename or Path(original_filename).suffix.lower() != ".csv":
-        raise DatasetUploadError("Upload a file with a .csv extension.")
+    if not original_filename or Path(original_filename).suffix.lower() not in {".csv", ".xlsx"}:
+        raise DatasetUploadError("Upload a .csv or .xlsx file.")
 
     if len(original_filename) > 255:
         raise DatasetUploadError("The filename must be at most 255 characters.")
@@ -110,6 +104,10 @@ def save_dataset(
     if len(content) > MAX_UPLOAD_BYTES:
         raise DatasetLimitError("The CSV must be 10 MiB or smaller.")
 
+    if Path(original_filename).suffix.lower() == ".xlsx":
+        from customer_intelligence.services.excel import excel_to_csv
+
+        content = excel_to_csv(content, sheet_name)
     row_count, column_count = validate_csv(content)
 
     dataset_id = uuid4()
