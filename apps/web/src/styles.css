@@ -1,8 +1,9 @@
-body {
-  margin: 0;
-  font-family: system-ui, sans-serif;
-}
+/* Order matters: primitives, sections, then responsive overrides. */
+@import './styles/base.css';
+@import './styles/layout.css';
+@import './styles/landing.css';
+@import './styles/pages.css';
+@import './styles/auth.css';
+@import './styles/responsive.css';
 
-main {
-  padding: 2rem;
-}
+@import './styles/saas.css';

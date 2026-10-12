@@ -1,39 +1,22 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
-  "globalDependencies": [
-    "scripts/python.mjs",
-    "apps/api/uv.lock"
-  ],
+  "globalDependencies": ["scripts/python.mjs", "apps/api/uv.lock"],
   "tasks": {
     "dev": {
       "cache": false,
       "persistent": true,
-      "passThroughEnv": [
-        "NEBIUS_*",
-        "CI_*",
-        "VITE_*"
-      ]
+      "passThroughEnv": ["NEBIUS_*", "CI_*", "VITE_*"]
     },
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**"
-      ],
-      "env": [
-        "VITE_API_BASE_URL"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "env": ["VITE_API_BASE_URL"]
     },
     "lint": {
-      "dependsOn": [
-        "^lint"
-      ]
+      "dependsOn": ["^lint"]
     },
     "check-types": {
-      "dependsOn": [
-        "^check-types"
-      ]
+      "dependsOn": ["^check-types"]
     }
   }
 }

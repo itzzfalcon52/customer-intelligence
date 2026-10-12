@@ -1,6 +1,6 @@
 # Customer Intelligence
 
-A customer retention copilot with a working P0/P1 backend and a React/Vite frontend skeleton.
+A customer retention copilot with a working P0/P1 backend and a React/Vite marketing frontend.
 Historical labeled sheet → confirmed task → model comparison → saved pipeline → current-customer
 risk ranking → CSV shortlist. The Nebius/NVIDIA assistant uses tools to explain computed evidence
 and can queue an explicitly authorized training plan.
@@ -37,8 +37,9 @@ pnpm worker:api
 
 API: <http://127.0.0.1:8000>; interactive API contracts: <http://127.0.0.1:8000/docs>.
 The worker is required: submitting a job only queues it. It supervises one CPU job at a time.
-`pnpm dev` also starts the existing frontend skeleton at <http://127.0.0.1:5173>;
-frontend product screens are the next milestone.
+`pnpm dev` also starts the marketing frontend at <http://127.0.0.1:5173>.
+Landing, features and pricing pages are implemented. Login/signup are disabled design previews.
+See [the frontend guide](docs/frontend.md). Core product screens remain planned.
 
 If using Python directly, activate **`apps/api/.venv/bin/activate`**, not a root `venv`.
 
@@ -109,7 +110,7 @@ The selected model is the best measured candidate under this budget, not a globa
 
 This is one private local workspace, not a publicly deployable multi-tenant SaaS. Optional bearer
 authentication does not replace user accounts, tenancy or authorization. Public hosting, CRM/outreach,
-monitoring, regression and P2 features are future work. The frontend remains a skeleton.
+monitoring, regression and P2 features are future work. The marketing frontend is implemented; account access remains unimplemented.
 
 Assistant calls transmit profiles (excluding raw previews), task settings, run/analysis metrics and
 chat history to Nebius. Do not put credentials or unnecessary personal information into chat or

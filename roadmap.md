@@ -1,6 +1,6 @@
 # Customer Intelligence — Product and Development Roadmap
 
-Updated October 11, 2026. The P0/P1 backend is implemented; product screens and P2 remain planned. Sections below describe product intent as well as future work; the current-state section and backend walkthrough are authoritative for shipped behavior.
+Updated October 12, 2026. The P0/P1 backend and marketing frontend are implemented; account access, core product screens and P2 remain planned. Sections below describe product intent as well as future work; the current-state section and backend walkthrough are authoritative for shipped behavior.
 
 ## 1. What we are building
 
@@ -43,7 +43,7 @@ one bounded SDK tool loop, not LangChain/LangGraph or vector retrieval. Tests mo
 
 ### Remaining product work
 
-The React/Vite frontend is still a skeleton. Upload/goal forms, plots, job progress/cancellation UI,
+The React/Vite marketing pages are implemented, with disabled login/signup design previews. Account access remains planned. Upload/goal forms, plots, job progress/cancellation UI,
 report/history screens and evidence navigation must be wired to the real backend. Public deployment,
 real identity/tenancy, chronological/grouped evaluation and P2 integrations are not implemented.
 Backend completion is not hackathon submission completion or proof of startup demand.

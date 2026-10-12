@@ -1,61 +1,42 @@
-import { useState } from 'react';
-import { z } from 'zod';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { SiteLayout } from './components/SiteLayout';
+import { HomePage } from './pages/HomePage';
+import { FeaturesPage } from './pages/FeaturesPage';
+import { PricingPage } from './pages/PricingPage';
+import { NotFoundPage } from './pages/NotFoundPage';
+// The account forms (and Zod validation) load only when an account route is visited.
+const AuthPage = lazy(() =>
+  import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })),
+);
 
-const healthSchema = z.object({
-  status: z.literal('ok'),
-  service: z.string(),
-});
-
-type HealthResponse = z.infer<typeof healthSchema>;
+function AccountRoute({ mode }: { mode: 'login' | 'signup' }) {
+  return (
+    <Suspense
+      fallback={
+        <section className="route-loading" role="status">
+          Opening your next chapter…
+        </section>
+      }
+    >
+      <AuthPage mode={mode} />
+    </Suspense>
+  );
+}
 
 export default function App() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function checkBackend() {
-    setLoading(true);
-    setError(null);
-    setHealth(null);
-
-    try {
-      const response = await fetch('/api/v1/health', {
-        cache: 'no-store',
-      });
-
-      if (!response.ok) {
-        throw new Error(`Backend returned HTTP ${response.status}`);
-      }
-
-      const data = healthSchema.parse(await response.json());
-      setHealth(data);
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'Could not connect to the backend.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <main>
-      <h1>Customer Intelligence</h1>
-      <p>Check the connection between React and FastAPI.</p>
-
-      <button onClick={checkBackend} disabled={loading}>
-        {loading ? 'Checking...' : 'Check backend'}
-      </button>
-
-      {health && (
-        <p role="status">
-          Connected to {health.service}. Status: {health.status}
-        </p>
-      )}
-
-      {error && <p role="alert">{error}</p>}
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<SiteLayout />}>
+          <Route index element={<HomePage />} />
+          <Route path="features" element={<FeaturesPage />} />
+          <Route path="pricing" element={<PricingPage />} />
+          <Route path="login" element={<AccountRoute mode="login" />} />
+          <Route path="signup" element={<AccountRoute mode="signup" />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }

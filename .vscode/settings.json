@@ -1,6 +1,4 @@
 {
-    "python.defaultInterpreterPath": "${workspaceFolder}/apps/api/.venv/bin/python",
-    "python.analysis.extraPaths": [
-      "./apps/api/src"
-    ]
-  }
+  "python.defaultInterpreterPath": "${workspaceFolder}/apps/api/.venv/bin/python",
+  "python.analysis.extraPaths": ["./apps/api/src"]
+}

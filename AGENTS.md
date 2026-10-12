@@ -4,7 +4,7 @@
 
 This file gives Codex repository context and working instructions. Read `README.md` for setup and `roadmap.md` for the detailed product plan. Follow the user's current request; the roadmap is a backlog, not authorization to implement all features.
 
-The user authorized direct implementation and testing of the complete P0 and P1 backend on October 11, 2026. Preserve user work and data. Explain progress and verify behavior. Frontend, deployment, and P2 integrations remain outside this authorization.
+The user authorized direct implementation and testing of the complete P0 and P1 backend on October 11, 2026. Preserve user work and data. Explain progress and verify behavior. Marketing frontend pages are implemented. On October 12, the user explicitly requested removal of the added auth architecture. Login/signup are disabled design previews; account access is unimplemented. Deployment and P2 integrations remain outside this authorization.
 
 ## Product context
 
@@ -23,7 +23,7 @@ The main builder has trained deep-learning models and learned GenAI/LangChain co
 - SQLite metadata plus ignored `.data` artifacts; preserve existing customer files/runs.
 - One private local workspace with optional bearer token; macOS/Linux worker. No multi-tenant/public
   deployment, time/group splits, regression or P2 integrations.
-- React/Vite remains a frontend skeleton. No product screens have been implemented in this pass.
+- React/Vite marketing pages are implemented; account access and core product screens remain unimplemented.
 - Tests in `apps/api/tests`, runnable demo `apps/api/demo.py`, contracts at `/docs` and walkthrough
   `docs/backend.md`. Agent tests mock the provider; do not call live Nebius without reason.
 - Existing `check_*.py` learning scripts remain available. Pipeline artifacts fingerprint
