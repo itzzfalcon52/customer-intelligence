@@ -14,7 +14,7 @@ class SplitResponse(BaseModel):
     dataset_id: UUID
     dataset_sha256: str
     random_seed: int
-    strategy: Literal["stratified_random"]
+    strategy: Literal["stratified_random", "time_ordered"]
     train: PartitionSummary
     validation: PartitionSummary
     test: PartitionSummary

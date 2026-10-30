@@ -16,7 +16,7 @@ from sklearn.pipeline import Pipeline
 from customer_intelligence.schemas.comparison import ComparisonReport
 from customer_intelligence.schemas.runs import TrainingRunManifest
 from customer_intelligence.schemas.split import SplitArtifact
-from customer_intelligence.schemas.task import TaskResponse
+from customer_intelligence.schemas.task import TaskResponse, fingerprint_payload
 
 
 def save_training_run(
@@ -45,9 +45,7 @@ def save_training_run(
         or split.summary.random_seed != task.random_seed
         or split.sklearn_version != report.sklearn_version
         or split.task_fingerprint
-        != sha256(
-            json.dumps(task.model_dump(mode="json"), sort_keys=True).encode("utf-8")
-        ).hexdigest()
+        != sha256(json.dumps(fingerprint_payload(task), sort_keys=True).encode("utf-8")).hexdigest()
     ):
         raise ValueError("The report, task, and saved split do not describe the same run.")
 

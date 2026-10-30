@@ -1,0 +1,13 @@
+# Builds the React app and serves it with Caddy, which is also the HTTPS reverse proxy.
+FROM node:22-slim AS build
+WORKDIR /repo
+RUN corepack enable && corepack prepare pnpm@11.25.0 --activate
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/web/package.json apps/web/
+RUN pnpm install --frozen-lockfile --filter @ci/web...
+COPY apps/web apps/web
+RUN pnpm --filter @ci/web build
+
+FROM caddy:2.10-alpine
+COPY --from=build /repo/apps/web/dist /srv
+COPY deploy/Caddyfile /etc/caddy/Caddyfile

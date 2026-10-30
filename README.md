@@ -25,6 +25,10 @@ For assistant requests, add the credentials/model you already verified to `apps/
 Use `apps/api/.env.example` as a reference; do not overwrite your existing `.env`.
 Upload, training and scoring work without provider credentials.
 
+To connect Stripe for daily data, run `pnpm setup:connectors` once (it saves an encryption key to
+`apps/api/.env`), restart the API and worker, then connect Stripe on the Data sources page. See
+[the connector notes](docs/backend.md#stripe-as-a-live-daily-feed-october-30).
+
 Run these in **two separate terminals** from the project root:
 
 ```sh
@@ -38,8 +42,8 @@ pnpm worker:api
 API: <http://127.0.0.1:8000>; interactive API contracts: <http://127.0.0.1:8000/docs>.
 The worker is required: submitting a job only queues it. It supervises one CPU job at a time.
 `pnpm dev` also starts the marketing frontend at <http://127.0.0.1:5173>.
-Landing, features and pricing pages are implemented. Login/signup are disabled design previews.
-See [the frontend guide](docs/frontend.md). Core product screens remain planned.
+Landing, features and pricing pages are implemented. Email/password account access is implemented; signup signs in immediately. See [account setup](docs/auth.md).
+See [the frontend guide](docs/frontend.md). The authenticated core workspace is implemented; see [workspace guide](docs/workspace.md).
 
 If using Python directly, activate **`apps/api/.venv/bin/activate`**, not a root `venv`.
 
@@ -110,7 +114,7 @@ The selected model is the best measured candidate under this budget, not a globa
 
 This is one private local workspace, not a publicly deployable multi-tenant SaaS. Optional bearer
 authentication does not replace user accounts, tenancy or authorization. Public hosting, CRM/outreach,
-monitoring, regression and P2 features are future work. The marketing frontend is implemented; account access remains unimplemented.
+monitoring, regression and P2 features are future work. The marketing frontend is implemented; email/password accounts and the core workspace are implemented. See [workspace guide](docs/workspace.md).
 
 Assistant calls transmit profiles (excluding raw previews), task settings, run/analysis metrics and
 chat history to Nebius. Do not put credentials or unnecessary personal information into chat or
@@ -118,3 +122,5 @@ column names. Uploaded sheets and full scored-customer rows are not sent automat
 services work independently of GenAI; the provider interprets evidence and chooses allowed tools.
 LangChain/LangGraph are installed but this agent uses the OpenAI-compatible SDK directly. Qdrant
 is not required for these structured facts. Adding policy-document retrieval later is a separate feature.
+
+Deployment to a single AWS Lightsail server (Docker Compose + Caddy) is described in [docs/deploy.md](docs/deploy.md).

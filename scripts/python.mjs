@@ -27,18 +27,20 @@ const tasks = {
   ],
   worker: ['-m', 'customer_intelligence.worker'],
   test: ['-m', 'pytest', 'tests', '-q'],
-  lint: ['-m', 'ruff', 'check', 'src', 'tests', 'demo.py'],
+  eval: ['-m', 'evals'],
+  lint: ['-m', 'ruff', 'check', 'src', 'tests', 'evals', 'demo.py'],
   format: [
     '-m',
     'ruff',
     'format',
     'src',
     'tests',
+    'evals',
     'demo.py',
     '--exclude',
     'preprocessing.py',
   ],
-  'check-types': ['-m', 'mypy', 'src/customer_intelligence'],
+  'check-types': ['-m', 'mypy', 'src/customer_intelligence', 'evals'],
   build: ['-m', 'build', '--outdir', 'dist'],
 };
 const name = process.argv[2];

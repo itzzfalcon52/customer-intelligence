@@ -1,0 +1,86 @@
+{
+  "dataset": "Telco churn reference CSV",
+  "random_seed": 42,
+  "note": "Temporary workspace; fixed stratified split. Development comparison, not final test performance. Feature expansion and cutoff differ; effects are not isolated. User artifacts unchanged.",
+  "results": [
+    {
+      "case": "original_6_features",
+      "features": [
+        "gender",
+        "tenure",
+        "PaymentMethod",
+        "TotalCharges",
+        "Contract",
+        "MonthlyCharges"
+      ],
+      "selected_candidate": "xgboost",
+      "threshold": 0.6,
+      "threshold_policy": "fixed",
+      "validation": {
+        "row_count": 1056,
+        "positive_count": 280,
+        "predicted_positive_count": 129,
+        "accuracy": 0.7736742424242424,
+        "precision": 0.6589147286821705,
+        "recall": 0.30357142857142855,
+        "f1": 0.4156479217603912,
+        "roc_auc": 0.8426132179675994,
+        "average_precision": 0.6377535316065988,
+        "true_negative": 732,
+        "false_positive": 44,
+        "false_negative": 195,
+        "true_positive": 85
+      },
+      "train_rows": 4930,
+      "validation_rows": 1056,
+      "test_rows_reserved": 1057,
+      "test_evaluated": false
+    },
+    {
+      "case": "expanded_19_features_bounded_search",
+      "features": [
+        "gender",
+        "SeniorCitizen",
+        "Partner",
+        "Dependents",
+        "tenure",
+        "PhoneService",
+        "MultipleLines",
+        "InternetService",
+        "OnlineSecurity",
+        "OnlineBackup",
+        "DeviceProtection",
+        "TechSupport",
+        "StreamingTV",
+        "StreamingMovies",
+        "Contract",
+        "PaperlessBilling",
+        "PaymentMethod",
+        "MonthlyCharges",
+        "TotalCharges"
+      ],
+      "selected_candidate": "xgboost",
+      "threshold": 0.5237500071525574,
+      "threshold_policy": "precision_at_recall",
+      "validation": {
+        "row_count": 1056,
+        "positive_count": 280,
+        "predicted_positive_count": 217,
+        "accuracy": 0.7982954545454546,
+        "precision": 0.6543778801843319,
+        "recall": 0.5071428571428571,
+        "f1": 0.5714285714285714,
+        "roc_auc": 0.8501380706921945,
+        "average_precision": 0.6518507605715897,
+        "true_negative": 701,
+        "false_positive": 75,
+        "false_negative": 138,
+        "true_positive": 142
+      },
+      "train_rows": 4930,
+      "validation_rows": 1056,
+      "test_rows_reserved": 1057,
+      "test_evaluated": false
+    }
+  ]
+}

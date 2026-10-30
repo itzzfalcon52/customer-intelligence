@@ -21,3 +21,10 @@ coverage/
 *.log
 playwright-report/
 test-results/
+
+apps/backend/src/generated/
+
+# Impeccable design-tool caches and review captures
+apps/web/.impeccable/hook.cache.json
+apps/web/.impeccable/review/
+apps/web/.impeccable/questions/

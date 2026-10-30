@@ -25,19 +25,46 @@ for future app screens. Never put provider credentials in `VITE_*` variables.
 | `/`            | Product story        | Interactive customer-priority preview, workflow, copilot, roadmap, FAQ           |
 | `/features`    | Platform and roadmap | Filter built backend capabilities versus planned connected signals and actions   |
 | `/pricing`     | Commercial direction | Three preview offerings; no announced prices, billing, checkout or purchase flow |
-| `/login`       | Login UI             | Disabled design preview; no account requests                                     |
-| `/signup`      | Signup UI            | Disabled design preview; no account requests                                     |
+| `/login`       | Login UI             | Better Auth email/password account flow                                          |
+| `/signup`      | Signup UI            | Better Auth email/password account flow                                          |
 | Any other path | Recovery             | Friendly 404 with a working home link                                            |
 
-The added authentication architecture was removed at the user’s request. Login/signup
-are disabled design previews; they do not submit or store account details.
+Email/password accounts now use the new `apps/backend` Better Auth service. Signup
+signs in immediately, without email verification. See [account setup](auth.md).
+The `/app` workspace now includes the core ML workflow, jobs, results, scoring and evidence chat.
+See [workspace guide](workspace.md) for feature coverage, data boundaries and startup.
 
 The tour's companies and signals are fictional. It illustrates the proposed SaaS
 retention workflow, including future usage signals and reviewed actions. It is not a
 live analysis, a customer testimonial or evidence that any intervention reduces churn.
 “Built today” means implemented backend capabilities, not a finished app workspace.
 
-## How the pieces connect
+## Current structure (October 29, 2026 rebuild)
+
+The whole frontend was rebuilt on Tailwind CSS v4, Motion and cmdk. The sections below this one
+describe the earlier marketing build and are kept only as history.
+
+- **Styles:** `src/index.css` holds Tailwind and the theme tokens. It is the only stylesheet;
+  `src/styles/` was removed.
+- **Marketing:**
+  - `components/SiteLayout.tsx` provides the header, mobile menu and footer.
+  - `components/Logo.tsx` is the logo.
+  - `components/ProductPreview.tsx` is a static workspace preview with labelled synthetic
+    values.
+  - `pages/HomePage`, `FeaturesPage`, `PricingPage`, `AuthPage` and `NotFoundPage`.
+  - Copy stays in `lib/content.ts`.
+- **Workspace:**
+  - `workspace/Shell.tsx` provides the sidebar, top bar, command palette, Ask drawer and toasts.
+  - `workspace/ui.tsx` and `style.ts` are the component kit.
+  - `workspace/workflow.ts` and `workflow-ui.tsx` hold the step model, demo pipeline, stepper
+    and next-step card.
+  - Pages are in `workspace/pages/`: Overview, Data, Churn, Models, Scores, Plays,
+    Investigate, Analyses, Copilot, Manage.
+- **Design rules:** `apps/web/DESIGN.md`.
+
+The Manrope files in `public/fonts/` are no longer referenced.
+
+## How the pieces connect (earlier build)
 
 `main.tsx` mounts React and imports the style entry point. `App.tsx` declares the
 routes. `SiteLayout.tsx` supplies the shared header, mobile menu, footer and native
@@ -54,7 +81,7 @@ so each page can open the same tour without passing callbacks through every comp
 | `src/components/FinalCTA.tsx`       | Reusable closing call to action                                       |
 | `src/hooks/usePageEffects.ts`       | Page title, route scroll/focus and one-shot section reveals           |
 | `src/lib/content.ts`                | Capability/roadmap copy and shared FAQ                                |
-| `src/lib/authValidation.ts`         | Zod field validation for future form work                             |
+| `src/lib/authValidation.ts`         | Zod field validation shared by account forms                          |
 | `src/styles/`                       | Base tokens, shared layout, landing, page, auth and responsive styles |
 | `public/fonts/`                     | Two self-hosted Latin font subsets and the Manrope open-font license  |
 
@@ -88,10 +115,10 @@ pnpm --filter @ci/web test
 pnpm --filter @ci/web build
 ```
 
-Four focused validation tests cover invalid email/name, preview acknowledgement,
-password boundaries, whitespace handling, and the different login/signup rules.
+Four focused validation tests cover malformed email, password length boundaries,
+and preserving intentional password whitespace.
 Browser checks should cover mobile navigation, all five routes, feature filters,
-FAQ expansion, modal focus/Escape, keyboard tabs, the budget slider, disabled account forms and the local preview. Check horizontal overflow at phone,
+FAQ expansion, modal focus/Escape, keyboard tabs, the budget slider, signup/login/logout and the local preview. Check horizontal overflow at phone,
 tablet and desktop widths. Check the production preview as well as development.
 
 The first implementation was checked in the local browser at phone and desktop

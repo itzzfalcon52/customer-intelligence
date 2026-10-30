@@ -230,7 +230,9 @@ def test_api_agent_uses_configured_provider_adapter(backend, trained, monkeypatc
             {"role": "assistant", "content": "480 rows are recorded."},
         ]
     )
-    monkeypatch.setattr("customer_intelligence.agent.workflow.OpenAI", lambda **kwargs: client)
+    monkeypatch.setattr(
+        "customer_intelligence.agent.provider.provider_client", lambda settings: client
+    )
     result = backend["client"].post(
         "/api/v1/assistant/messages",
         json={
@@ -253,7 +255,9 @@ def test_legacy_inspection_uses_request_database(backend, trained, monkeypatch):
             {"role": "assistant", "content": "The supplied dataset has 480 rows."},
         ]
     )
-    monkeypatch.setattr("customer_intelligence.services.assistant.OpenAI", lambda **kwargs: client)
+    monkeypatch.setattr(
+        "customer_intelligence.agent.provider.provider_client", lambda settings: client
+    )
     response = backend["client"].post(
         "/api/v1/assistant/inspect",
         json={

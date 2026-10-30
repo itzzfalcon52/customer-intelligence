@@ -1,0 +1,15 @@
+# Keep build contexts small and free of secrets and customer data.
+**/node_modules
+**/.venv
+**/dist
+**/__pycache__
+.data
+.pnpm-store
+.tooling
+.turbo
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+deploy/.env
+.git

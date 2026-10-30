@@ -1,0 +1,16 @@
+# Better Auth + Prisma account service. Dev dependencies stay so `prisma migrate deploy` can run.
+FROM node:22-slim
+WORKDIR /repo
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@11.25.0 --activate
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/backend/package.json apps/backend/
+RUN pnpm install --frozen-lockfile --filter @ci/backend...
+COPY apps/backend apps/backend
+RUN pnpm --filter @ci/backend build
+WORKDIR /repo/apps/backend
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3001 TRUST_PROXY=true
+USER node
+EXPOSE 3001
+CMD ["node", "dist/server.js"]

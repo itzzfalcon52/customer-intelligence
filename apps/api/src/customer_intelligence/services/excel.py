@@ -9,14 +9,20 @@ from openpyxl import load_workbook
 from openpyxl.xml import DEFUSEDXML
 
 from customer_intelligence.services.datasets import (
-    MAX_COLUMNS,
-    MAX_ROWS,
+    NO_LIMIT,
     DatasetLimitError,
     DatasetUploadError,
 )
 
 
-def excel_to_csv(content: bytes, sheet_name: str | None) -> bytes:
+def excel_to_csv(
+    content: bytes,
+    sheet_name: str | None,
+    *,
+    max_rows: int = NO_LIMIT,
+    max_columns: int = NO_LIMIT,
+    max_bytes: int = NO_LIMIT,
+) -> bytes:
     if not DEFUSEDXML:
         raise DatasetUploadError(
             "Excel XML protection is unavailable; install backend dependencies."
@@ -24,7 +30,8 @@ def excel_to_csv(content: bytes, sheet_name: str | None) -> bytes:
     try:
         with ZipFile(BytesIO(content)) as archive:
             entries = archive.infolist()
-            if len(entries) > 1000 or sum(item.file_size for item in entries) > 50_000_000:
+            expanded = sum(item.file_size for item in entries)
+            if len(entries) > 1000 or expanded > max(50_000_000, 10 * len(content)):
                 raise DatasetLimitError("The expanded workbook exceeds the import budget.")
             if any("vbaproject" in item.filename.lower() for item in entries):
                 raise DatasetUploadError("Macro-enabled workbooks are not supported.")
@@ -46,9 +53,9 @@ def excel_to_csv(content: bytes, sheet_name: str | None) -> bytes:
         output = StringIO(newline="")
         writer = csv.writer(output)
         sheet = workbook[sheet_name]
-        if sheet.max_row and sheet.max_row > MAX_ROWS + 1:
+        if sheet.max_row and sheet.max_row > max_rows + 1:
             raise DatasetLimitError("The workbook has too many rows.")
-        if sheet.max_column and sheet.max_column > MAX_COLUMNS:
+        if sheet.max_column and sheet.max_column > max_columns:
             raise DatasetLimitError("The workbook has too many columns.")
         width = None
         count = 0
@@ -73,7 +80,7 @@ def excel_to_csv(content: bytes, sheet_name: str | None) -> bytes:
                 raise DatasetUploadError("Workbook data extends beyond its header columns.")
             writer.writerow(values[:width])
             count += 1
-            if count > MAX_ROWS + 1 or output.tell() > 10_000_000:
+            if count > max_rows + 1 or output.tell() > max_bytes:
                 raise DatasetLimitError("The converted workbook exceeds the CSV import budget.")
         return output.getvalue().encode("utf-8")
     except (ParseError, DefusedXmlException, BadZipFile) as exc:

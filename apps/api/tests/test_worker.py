@@ -80,7 +80,8 @@ def test_supervisor_stops_process_on_timeout_or_cancellation(backend, trained, m
     monkeypatch.setattr(worker, "engine", backend["app"].state.engine)
     monkeypatch.setattr(worker, "get_settings", lambda: backend["settings"])
     monkeypatch.setattr(worker.subprocess, "Popen", start)
-    moments = iter([0, 601, 602])
+    budget = backend["settings"].worker_timeout_seconds
+    moments = iter([0, budget + 1, budget + 2])
     monkeypatch.setattr(worker, "monotonic", lambda: next(moments))
     assert worker.run_once()
     assert child.terminated

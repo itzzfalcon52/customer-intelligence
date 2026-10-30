@@ -20,6 +20,17 @@ from customer_intelligence.services.artifacts import publish_json, read_json
 from customer_intelligence.services.profiling import load_dataset_frame
 from customer_intelligence.services.runs import load_pipeline, read_training_run
 
+# A scored row is about 150-250 bytes of JSON; the budget scales with the row limit.
+BYTES_PER_ROW = 400
+
+
+def rows_budget(settings: Settings) -> int:
+    return max(20_000_000, settings.max_rows * BYTES_PER_ROW)
+
+
+def manifest_budget(manifest: ScoreManifest) -> int:
+    return max(20_000_000, manifest.row_count * BYTES_PER_ROW)
+
 
 def score_dataset(session: Session, settings: Settings, request: ScoreRequest) -> UUID:
     run = read_training_run(request.run_id, settings.data_directory)
@@ -110,8 +121,29 @@ def score_dataset(session: Session, settings: Settings, request: ScoreRequest) -
             for position in (priority_order if request.ranking == "risk_x_value" else order)
         )
     ]
+    holdout_seed, holdout_count = None, 0
+    if request.holdout_rate > 0:
+        # A seeded random holdout among the contact list: the only fair comparison for lift.
+        if request.contact_count < 10:
+            raise WorkflowError("A holdout group needs a contact list of at least 10 accounts.")
+        holdout_seed = request.idempotency_key.int % 2**32
+        holdout_count = max(1, round(request.contact_count * request.holdout_rate))
+        chosen = set(
+            np.random.default_rng(holdout_seed)
+            .choice(request.contact_count, size=holdout_count, replace=False)
+            .tolist()
+        )
+        for position, row in enumerate(rows[: request.contact_count]):
+            row["group"] = "holdout" if position in chosen else "contact"
+        warnings.append(
+            f"{holdout_count} of {request.contact_count} listed accounts are a random holdout: "
+            "do not contact them, so outreach can be measured against them later."
+        )
+    elif rows:
+        for row in rows[: request.contact_count]:
+            row["group"] = "contact"
     encoded = json.dumps(rows, allow_nan=False, ensure_ascii=False).encode()
-    if len(encoded) > 20_000_000:
+    if len(encoded) > rows_budget(settings):
         raise WorkflowError("Scoring output exceeds the artifact size limit.")
     score_id = uuid4()
     manifest = ScoreManifest(
@@ -127,6 +159,9 @@ def score_dataset(session: Session, settings: Settings, request: ScoreRequest) -
         value_unit=request.value_unit,
         rows_sha256=sha256(encoded).hexdigest(),
         warnings=warnings,
+        holdout_rate=request.holdout_rate,
+        holdout_seed=holdout_seed,
+        holdout_count=holdout_count,
     )
     publish_json(
         settings.data_directory / "scores",
@@ -155,10 +190,10 @@ def read_customers(manifest: ScoreManifest, data_directory: Path) -> list[Custom
     path = data_directory / "scores" / str(manifest.id) / "rows.json"
     try:
         with path.open("rb") as handle:
-            raw = handle.read(20_000_001)
+            raw = handle.read(manifest_budget(manifest) + 1)
     except OSError as exc:
         raise WorkflowError("Scoring output is missing or unreadable.", 409) from exc
-    if len(raw) > 20_000_000 or sha256(raw).hexdigest() != manifest.rows_sha256:
+    if len(raw) > manifest_budget(manifest) or sha256(raw).hexdigest() != manifest.rows_sha256:
         raise WorkflowError("Scoring output checksum mismatch.", 409)
     try:
         payload = json.loads(raw)
@@ -198,9 +233,12 @@ def export_scores(
             "priority_rank",
             "run_id",
             "scoring_dataset_id",
+            "group",
         ]
     )
-    for row in rows[:top_k] if top_k else rows:
+    # A contact export never includes the holdout: those accounts must not be contacted.
+    selected = [r for r in rows if r.group != "holdout"][:top_k] if top_k else rows
+    for row in selected:
         writer.writerow(
             [
                 spreadsheet_safe(row.customer_id),
@@ -212,6 +250,7 @@ def export_scores(
                 row.priority_rank,
                 manifest.run_id,
                 manifest.dataset_id,
+                row.group or "",
             ]
         )
     return output.getvalue()

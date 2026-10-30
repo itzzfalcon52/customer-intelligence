@@ -8,6 +8,9 @@
     "lint": "node ../../scripts/python.mjs lint",
     "check-types": "node ../../scripts/python.mjs check-types",
     "worker": "node ../../scripts/python.mjs worker",
-    "test": "node ../../scripts/python.mjs test"
+    "test": "node ../../scripts/python.mjs test",
+    "eval": "node ../../scripts/python.mjs eval",
+    "eval:live": "node ../../scripts/python.mjs eval --live",
+    "eval:record": "node ../../scripts/python.mjs eval --live --record"
   }
 }

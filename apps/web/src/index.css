@@ -1,0 +1,276 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/archivo/standard.css';
+@import '@fontsource-variable/martian-mono/standard.css';
+
+@theme {
+  --font-sans: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Martian Mono Variable', ui-monospace, SFMono-Regular, monospace;
+  /* Square-cut corners, like tag stock. */
+  --radius-lg: 4px;
+  --radius-xl: 5px;
+  --radius-2xl: 6px;
+  --radius-3xl: 8px;
+
+  /* Holdfast: Archivo across its width axis, Martian Mono for stamped ranks and measurements. */
+  --font-display: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-stamp: 'Martian Mono Variable', ui-monospace, monospace;
+
+  /* The triage field: deep surgical teal. */
+  --color-field-50: #f0f8f6;
+  --color-field-100: #dcefeb;
+  --color-field-200: #b9ded7;
+  --color-field-300: #86c4ba;
+  --color-field-400: #4fa598;
+  --color-field-500: #2b877b;
+  --color-field-600: #186d64;
+  --color-field-700: #0f5a54;
+  --color-field-800: #0c4a47;
+  --color-field-900: #093936;
+  --color-field-950: #052523;
+  /* Tag stock, wire and the triage bars. Lower risk is slate, never green. */
+  --color-stock: #f5f7f4;
+  --color-stock-200: #e6eae5;
+  --color-stock-300: #d3d9d3;
+  --color-wire: #9aa6a2;
+  --color-tag-red: #d7262e;
+  --color-tag-amber: #f2b91f;
+  --color-tag-slate: #5e6a67;
+  --color-tag-ink: #141615;
+
+  --shadow-tag:
+    0 1px 0 0 rgb(255 255 255 / 0.6) inset, 0 2px 3px -1px rgb(5 37 35 / 0.25),
+    0 18px 36px -12px rgb(5 37 35 / 0.45);
+  --shadow-tag-lift:
+    0 1px 0 0 rgb(255 255 255 / 0.6) inset, 0 4px 6px -2px rgb(5 37 35 / 0.3),
+    0 40px 70px -20px rgb(5 37 35 / 0.6);
+
+  /* Workspace aliases. The app keeps its brand-/ink- class names; since the Holdfast restyle
+     they resolve to the triage world: brand = the teal field, ink = the deep field. */
+  --color-brand-50: #f0f8f6;
+  --color-brand-100: #dcefeb;
+  --color-brand-200: #b9ded7;
+  --color-brand-300: #86c4ba;
+  --color-brand-400: #4fa598;
+  --color-brand-500: #2b877b;
+  --color-brand-600: #186d64;
+  --color-brand-700: #0f5a54;
+  --color-brand-800: #0c4a47;
+  --color-brand-900: #093936;
+  --color-brand-950: #052523;
+  --color-ink-700: #186d64;
+  --color-ink-800: #0c4a47;
+  --color-ink-900: #093936;
+  --color-ink-950: #052523;
+
+  /* Status palettes re-derived from the triage bars, and neutrals tinted toward tag stock. */
+  --color-emerald-50: #f0f8f6;
+  --color-emerald-100: #dcefeb;
+  --color-emerald-200: #b9ded7;
+  --color-emerald-300: #86c4ba;
+  --color-emerald-400: #4fa598;
+  --color-emerald-500: #2b877b;
+  --color-emerald-600: #186d64;
+  --color-emerald-700: #0f5a54;
+  --color-emerald-800: #0c4a47;
+  --color-rose-50: #fcefee;
+  --color-rose-100: #f8dad8;
+  --color-rose-200: #f0b0ad;
+  --color-rose-300: #e7837f;
+  --color-rose-400: #df5257;
+  --color-rose-500: #d7262e;
+  --color-rose-600: #b91f26;
+  --color-rose-700: #961a20;
+  --color-rose-800: #79161b;
+  --color-amber-50: #fef8e7;
+  --color-amber-100: #fdefc6;
+  --color-amber-200: #fae08c;
+  --color-amber-300: #f7cf55;
+  --color-amber-400: #f4c235;
+  --color-amber-500: #f2b91f;
+  --color-amber-600: #a87a00;
+  --color-amber-700: #946b00;
+  --color-amber-800: #6f5000;
+  --color-amber-900: #4d3800;
+  --color-slate-50: #f5f7f4;
+  --color-slate-100: #ebeeea;
+  --color-slate-200: #dce1dc;
+  --color-slate-300: #c3cbc5;
+  --color-slate-400: #687370;
+  --color-slate-500: #56615d;
+  --color-slate-600: #4a5552;
+  --color-slate-700: #3b4441;
+  --color-slate-800: #262d2b;
+  --color-slate-900: #141615;
+  --color-slate-950: #0b0d0c;
+
+  --shadow-card:
+    0 1px 2px 0 rgb(5 37 35 / 0.04), 0 1px 3px 0 rgb(5 37 35 / 0.05);
+  --shadow-lift:
+    0 4px 6px -2px rgb(5 37 35 / 0.05), 0 12px 24px -6px rgb(5 37 35 / 0.1);
+  --shadow-pop:
+    0 10px 15px -3px rgb(5 37 35 / 0.08), 0 24px 48px -12px rgb(5 37 35 / 0.18);
+
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-strip: strip 60s linear infinite;
+  --animate-strip-reverse: strip 80s linear infinite reverse;
+
+  @keyframes strip {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+  --animate-pulse-ring: pulse-ring 2s ease-out infinite;
+
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+  @keyframes pulse-ring {
+    0% {
+      box-shadow: 0 0 0 0 rgb(43 135 123 / 0.45);
+    }
+    70% {
+      box-shadow: 0 0 0 6px rgb(43 135 123 / 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgb(43 135 123 / 0);
+    }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-slate-50 font-sans text-slate-900;
+  }
+  ::selection {
+    background: var(--color-tag-amber);
+    color: var(--color-tag-ink);
+  }
+  /* Martian Mono is wide; dense tables read better at its narrower setting. */
+  .font-mono {
+    font-stretch: 87.5%;
+  }
+  .site ::selection {
+    background: var(--color-tag-amber);
+    color: var(--color-tag-ink);
+  }
+  .site {
+    scrollbar-color: var(--color-field-600) var(--color-field-950);
+    caret-color: var(--color-tag-red);
+  }
+  /* Condensed display type closes up its spaces; open them so words never run together. */
+  .site :is(h1, h2, h3) {
+    word-spacing: 0.09em;
+  }
+  .site :focus-visible {
+    outline: 2px solid var(--color-tag-amber);
+    outline-offset: 3px;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+  input[type='number']::-webkit-inner-spin-button {
+    opacity: 0.4;
+  }
+}
+
+@layer components {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #eef1f5 25%, #f8fafc 50%, #eef1f5 75%);
+    background-size: 200% 100%;
+    @apply animate-shimmer rounded-md;
+  }
+  .prose-chat p {
+    @apply my-2 leading-relaxed;
+  }
+  .prose-chat ul,
+  .prose-chat ol {
+    @apply my-2 ml-5 list-disc space-y-1;
+  }
+  .prose-chat ol {
+    @apply list-decimal;
+  }
+  .prose-chat strong {
+    @apply font-semibold text-slate-900;
+  }
+  .prose-chat code {
+    @apply rounded bg-slate-100 px-1 py-0.5 font-mono text-[12.5px];
+  }
+  .prose-chat table {
+    @apply my-3 w-full text-sm;
+  }
+  .prose-chat th,
+  .prose-chat td {
+    @apply border-b border-slate-200 px-2 py-1.5 text-left;
+  }
+  .prose-chat a {
+    @apply text-brand-700 underline underline-offset-2;
+  }
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, rgb(148 163 184 / 0.12) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(148 163 184 / 0.12) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@layer components {
+  /* Perforation: the dashed tear line across a tag. */
+  .perf {
+    background-image: radial-gradient(
+      circle,
+      var(--color-field-950) 1.4px,
+      transparent 1.6px
+    );
+    background-size: 9px 4px;
+    background-repeat: repeat-x;
+    background-position: center;
+  }
+  /* Faint ruled stock, like the printed lines on a paper tag. */
+  .ruled {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0 23px,
+      rgb(20 22 21 / 0.07) 23px 24px
+    );
+  }
+  /* Pegboard behind the triage board. */
+  .pegboard {
+    background-image: radial-gradient(
+      circle,
+      rgb(5 37 35 / 0.55) 2px,
+      transparent 2.5px
+    );
+    background-size: 28px 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-strip,
+  .animate-strip-reverse {
+    animation: none;
+  }
+}

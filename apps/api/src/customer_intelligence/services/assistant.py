@@ -1,10 +1,13 @@
 import json
+from hashlib import sha256
 from uuid import UUID
 
-from openai import OpenAI
 from sqlmodel import Session
 
 from customer_intelligence.agent.inspection import AgentInspectionError, run_inspection
+from customer_intelligence.agent.llm import LLMGateway
+from customer_intelligence.agent.prompts import load_prompt
+from customer_intelligence.agent.tracing import traced
 from customer_intelligence.core.config import Settings
 from customer_intelligence.models.dataset import Dataset
 from customer_intelligence.models.task import Task
@@ -44,9 +47,9 @@ def inspect_with_agent(
             dataset = session.get(Dataset, dataset_id)
             if dataset is None:
                 raise AgentInspectionError("Dataset not found.")
-            content = profile_dataset(dataset, settings).model_dump(
-                mode="json", exclude={"preview", "original_filename"}
-            )
+            from customer_intelligence.services.privacy import ai_profile
+
+            content = ai_profile(session, profile_dataset(dataset, settings))
         else:
             arguments_task = ReadTaskArguments.model_validate_json(payload)
             if name != "read_task" or arguments_task.task_id != task_id:
@@ -60,17 +63,26 @@ def inspect_with_agent(
             }
         return json.dumps(content, allow_nan=False)
 
-    with OpenAI(
-        api_key=key.get_secret_value(),
-        base_url=str(base_url),
-        timeout=20.0,
-        max_retries=0,
-    ) as client:
+    prompt = load_prompt("inspection")
+    with (
+        traced(
+            session, "inspection", dataset_id=request.dataset_id, prompt_version=prompt.label
+        ) as tracer,
+        LLMGateway(settings) as gateway,
+    ):
+
+        def traced_execute(name: str, payload: str, dataset_id: UUID, task_id: UUID | None) -> str:
+            with tracer.tool(name, {"arguments_sha256": sha256(payload.encode()).hexdigest()}):
+                return execute(name, payload, dataset_id, task_id)
+
         return run_inspection(
-            client=client,
-            model=model,
+            client=gateway.client,
+            model=gateway.model_for("primary"),
             dataset_id=request.dataset_id,
             question=request.question,
             task_id=request.task_id,
-            tool_executor=execute,
+            tool_executor=traced_execute,
+            complete=lambda **options: gateway.complete(
+                name="inspection", prompt_version=prompt.label, **options
+            ),
         )

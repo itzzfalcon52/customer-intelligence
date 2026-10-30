@@ -9,6 +9,8 @@ class Conversation(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     dataset_id: UUID = Field(index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    # The user who started it; others in a shared workspace can't read or continue it.
+    owner_id: str | None = Field(default=None, index=True, max_length=200)
 
 
 class ConversationTurn(SQLModel, table=True):

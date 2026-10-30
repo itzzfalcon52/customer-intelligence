@@ -1,0 +1,191 @@
+[
+  {
+    "body": {
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "logprobs": null,
+          "message": {
+            "annotations": null,
+            "audio": null,
+            "content": null,
+            "function_call": null,
+            "reasoning": null,
+            "reasoning_content": null,
+            "refusal": null,
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{\"resource_id\":\"{{dataset_id}}\"}",
+                  "name": "inspect_dataset"
+                },
+                "id": "call_fc5fb5727031407b8ad19450",
+                "type": "function"
+              }
+            ]
+          },
+          "stop_reason": null,
+          "token_ids": null
+        }
+      ],
+      "created": 1793251260,
+      "ec_transfer_params": null,
+      "id": "chatcmpl-3a416efd",
+      "kv_transfer_params": null,
+      "model": "nvidia/Nemotron-3_5-Lightning",
+      "moderation": null,
+      "object": "chat.completion",
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "completion_tokens": 57,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": null
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 1094,
+        "prompt_tokens": 1094,
+        "prompt_tokens_details": null,
+        "total_tokens": 1151
+      }
+    },
+    "request": {
+      "messages": 2,
+      "tools": [
+        "inspect_dataset",
+        "read_task"
+      ]
+    },
+    "status": 200
+  },
+  {
+    "body": {
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "logprobs": null,
+          "message": {
+            "annotations": null,
+            "audio": null,
+            "content": null,
+            "function_call": null,
+            "reasoning": null,
+            "reasoning_content": null,
+            "refusal": null,
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{\"resource_id\":\"{{task_id}}\"}",
+                  "name": "read_task"
+                },
+                "id": "call_eafb72e8468a4476af40ce43",
+                "type": "function"
+              }
+            ]
+          },
+          "stop_reason": null,
+          "token_ids": null
+        }
+      ],
+      "created": 1793251261,
+      "ec_transfer_params": null,
+      "id": "chatcmpl-9d7a9366",
+      "kv_transfer_params": null,
+      "model": "nvidia/Nemotron-3_5-Lightning",
+      "moderation": null,
+      "object": "chat.completion",
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "completion_tokens": 57,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": null
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 2159,
+        "prompt_tokens": 2159,
+        "prompt_tokens_details": null,
+        "total_tokens": 2216
+      }
+    },
+    "request": {
+      "messages": 4,
+      "tools": [
+        "inspect_dataset",
+        "read_task"
+      ]
+    },
+    "status": 200
+  },
+  {
+    "body": {
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "logprobs": null,
+          "message": {
+            "annotations": null,
+            "audio": null,
+            "content": "**No \u2013 adding `cancellation_reason` would leak post\u2011outcome information.**  \n\n- The dataset contains a `cancellation_reason` column (4 distinct values, >50\u202f% missing).  \n- The `churned` label is recorded **after** a customer cancels, so `cancellation_reason` is a *post\u2011outcome* column.  \n- Including any column that captures what happened after the decision point inflates validation metrics (the \u201caccuracy jump\u201d you notice is artificial).  \n\n**What to do:** keep the feature set from the current task (`plan`, `billing_cycle`, `seats`, `active_users_30d`, `login_change_pct`, `support_tickets_90d`, `failed_payments_90d`, `nps`, `mrr`). These are all available at prediction time and do not encode the churn outcome. If you want to explore other candidates, run `analyze_schema_semantics` to verify semantic safety, or `challenge_business_rule` if you have a rule you want to test against the model.",
+            "function_call": null,
+            "reasoning": null,
+            "reasoning_content": null,
+            "refusal": null,
+            "role": "assistant",
+            "tool_calls": null
+          },
+          "stop_reason": null,
+          "token_ids": null
+        }
+      ],
+      "created": 1793251261,
+      "ec_transfer_params": null,
+      "id": "chatcmpl-93c705ba",
+      "kv_transfer_params": null,
+      "model": "nvidia/Nemotron-3_5-Lightning",
+      "moderation": null,
+      "object": "chat.completion",
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "completion_tokens": 243,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": null
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 2502,
+        "prompt_tokens": 2502,
+        "prompt_tokens_details": null,
+        "total_tokens": 2745
+      }
+    },
+    "request": {
+      "messages": 6,
+      "tools": [
+        "inspect_dataset",
+        "read_task"
+      ]
+    },
+    "status": 200
+  }
+]

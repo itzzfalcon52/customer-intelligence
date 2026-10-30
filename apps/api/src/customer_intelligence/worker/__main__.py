@@ -1,16 +1,19 @@
 import argparse
 import fcntl
 import os
+import re
 import subprocess
 import sys
 import time
 from datetime import UTC, datetime
 from time import monotonic
 
+from sqlalchemy.engine import Engine
 from sqlmodel import Session
 
-from customer_intelligence.core.config import get_settings
-from customer_intelligence.core.database import engine, init_database
+from customer_intelligence.core.config import Settings, get_settings
+from customer_intelligence.core.database import create_database_engine, engine, init_database
+from customer_intelligence.services.autonomy import tick
 from customer_intelligence.services.jobs import (
     claim_job,
     finish_job,
@@ -19,9 +22,10 @@ from customer_intelligence.services.jobs import (
 )
 
 
-def run_once() -> bool:
-    settings = get_settings()
-    with Session(engine) as session:
+def run_once(settings: Settings | None = None, database: Engine | None = None) -> bool:
+    settings = settings or get_settings()
+    database = database or engine
+    with Session(database) as session:
         job = claim_job(session)
         if job is None:
             return False
@@ -42,7 +46,7 @@ def run_once() -> bool:
             stderr=subprocess.DEVNULL,
         )
     except OSError:
-        with Session(engine) as session:
+        with Session(database) as session:
             finish_job(session, job_id, None, "Could not start the job process.")
         return True
     started = monotonic()
@@ -50,7 +54,7 @@ def run_once() -> bool:
     reason = None
     try:
         while child.poll() is None:
-            with Session(engine) as session:
+            with Session(database) as session:
                 job = get_job(session, job_id)
                 if job.cancel_requested:
                     reason = "Cancellation requested."
@@ -75,7 +79,7 @@ def run_once() -> bool:
             except subprocess.TimeoutExpired:
                 child.kill()
                 child.wait()
-        with Session(engine) as session:
+        with Session(database) as session:
             job = get_job(session, job_id)
             if job.state == "running":
                 finish_job(
@@ -95,12 +99,44 @@ def main() -> None:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise SystemExit("Another worker owns this data directory.") from None
-        init_database()
-        with Session(engine) as session:
-            recover_interrupted_jobs(session)
+
+        def workspaces() -> list[Settings]:
+            if settings.auth_mode == "private":
+                return [settings]
+            directory = settings.data_directory / "workspaces"
+            if not directory.exists():
+                return []
+            return [
+                settings.model_copy(update={"data_directory": path})
+                for path in sorted(directory.iterdir())
+                if re.fullmatch(r"[0-9a-f]{64}", path.name) and (path / ".workspace-ready").exists()
+            ]
+
+        recovered: set[str] = set()
+        last_tick: dict[str, float] = {}
         try:
             while True:
-                worked = run_once()
+                worked = False
+                for scoped in workspaces():
+                    database = create_database_engine(scoped)
+                    try:
+                        key = str(scoped.data_directory)
+                        if key not in recovered:
+                            init_database(scoped, database)
+                            with Session(database) as session:
+                                recover_interrupted_jobs(session)
+                            recovered.add(key)
+                        if monotonic() - last_tick.get(key, -60.0) > 30:
+                            # Due scheduled cycles are queued as ordinary idempotent jobs.
+                            with Session(database) as session:
+                                session.info["settings"] = scoped
+                                worked = tick(session) or worked
+                            last_tick[key] = monotonic()
+                        worked = run_once(scoped, database) or worked
+                    finally:
+                        database.dispose()
+                    if args.once and worked:
+                        break
                 if args.once:
                     break
                 if not worked:

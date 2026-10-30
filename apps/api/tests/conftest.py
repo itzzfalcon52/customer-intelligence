@@ -17,6 +17,7 @@ from customer_intelligence.services.training import train_task
 @pytest.fixture(scope="module")
 def backend(tmp_path_factory) -> Iterator[dict]:
     settings = Settings(
+        auth_mode="private",
         _env_file=None,
         data_directory=tmp_path_factory.mktemp("backend"),
         environment="test",

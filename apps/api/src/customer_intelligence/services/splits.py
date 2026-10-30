@@ -6,7 +6,11 @@ import pandas as pd
 import sklearn
 
 from customer_intelligence.core.config import Settings
-from customer_intelligence.ml.splitting import SplitValidationError, make_partitions
+from customer_intelligence.ml.splitting import (
+    SplitValidationError,
+    make_partitions,
+    make_time_partitions,
+)
 from customer_intelligence.models.dataset import Dataset
 from customer_intelligence.models.task import Task
 from customer_intelligence.schemas.split import (
@@ -14,7 +18,7 @@ from customer_intelligence.schemas.split import (
     SplitArtifact,
     SplitResponse,
 )
-from customer_intelligence.schemas.task import TaskResponse
+from customer_intelligence.schemas.task import TaskResponse, fingerprint_payload
 from customer_intelligence.services.profiling import load_dataset_frame
 
 
@@ -26,8 +30,8 @@ def prepare_split(
     if task.dataset_id != dataset.id:
         raise SplitValidationError("The task does not belong to this dataset.")
 
-    if task.evaluation_strategy != "stratified_random":
-        raise SplitValidationError("This version supports stratified random splits.")
+    if task.evaluation_strategy not in {"stratified_random", "time_ordered"}:
+        raise SplitValidationError("Unsupported evaluation strategy.")
 
     frame = load_dataset_frame(
         dataset,
@@ -46,7 +50,12 @@ def prepare_split(
         raise SplitValidationError("The target contains missing or unmapped labels.")
 
     labels = [int(value) for value in mapped]
-    partitions = make_partitions(labels, task.random_seed)
+    if task.evaluation_strategy == "time_ordered":
+        if not task.time_column or task.time_column not in frame.columns:
+            raise SplitValidationError("The time column for this task is missing.")
+        partitions = make_time_partitions(labels, frame[task.time_column].tolist())
+    else:
+        partitions = make_partitions(labels, task.random_seed)
     summaries: dict[str, PartitionSummary] = {}
 
     for name, positions in partitions.items():
@@ -61,13 +70,15 @@ def prepare_split(
         dataset_id=dataset.id,
         dataset_sha256=task.dataset_sha256,
         random_seed=task.random_seed,
-        strategy="stratified_random",
+        strategy="time_ordered"
+        if task.evaluation_strategy == "time_ordered"
+        else "stratified_random",
         train=summaries["train"],
         validation=summaries["validation"],
         test=summaries["test"],
     )
 
-    configuration = TaskResponse.model_validate(task).model_dump(mode="json")
+    configuration = fingerprint_payload(TaskResponse.model_validate(task))
     fingerprint = sha256(json.dumps(configuration, sort_keys=True).encode("utf-8")).hexdigest()
 
     artifact = SplitArtifact(

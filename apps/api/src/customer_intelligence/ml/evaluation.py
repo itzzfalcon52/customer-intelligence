@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, confusion_matrix, roc_auc_score
+from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 
@@ -31,6 +32,7 @@ class FittedComparison:
     results: list[ModelResult]
     best_pipeline: Pipeline
     failures: list[ModelFailure] = field(default_factory=list)
+    validation_scores: dict[str, list[float]] = field(default_factory=dict)
 
 
 def evaluate_binary(
@@ -111,14 +113,14 @@ def candidate_specs(random_seed: int, search_trials: int = 0) -> list[tuple[Mode
         ),
     ]
     variants: list[tuple[int, dict]] = [
+        (3, {"max_depth": 2, "n_estimators": 400, "reg_lambda": 5.0}),
         (1, {"C": 0.1}),
-        (1, {"C": 10.0}),
-        (2, {"max_depth": 6}),
-        (2, {"max_depth": 12}),
-        (2, {"min_samples_leaf": 10}),
-        (3, {"max_depth": 2}),
-        (3, {"max_depth": 4}),
-        (3, {"learning_rate": 0.1}),
+        (2, {"max_depth": 6, "min_samples_leaf": 10}),
+        (3, {"max_depth": 4, "min_child_weight": 5, "reg_lambda": 5.0}),
+        (1, {"C": 10.0, "class_weight": "balanced"}),
+        (2, {"max_depth": 12, "min_samples_leaf": 10, "class_weight": "balanced"}),
+        (3, {"max_depth": 2, "learning_rate": 0.03, "n_estimators": 600}),
+        (1, {"C": 1.0, "class_weight": "balanced"}),
     ]
     for number, (index, changes) in enumerate(variants[:search_trials], start=1):
         name, _, parameters = specs[index]
@@ -136,6 +138,7 @@ def fit_and_compare_models(
     threshold: float = 0.5,
     search_trials: int = 0,
     progress: Callable[[str], None] | None = None,
+    cv_folds: int = 0,
 ) -> FittedComparison:
     if len(training) != len(training_labels) or len(validation) != len(validation_labels):
         raise ModelEvaluationError("Features and labels must have matching row counts.")
@@ -143,10 +146,15 @@ def fit_and_compare_models(
         raise ModelEvaluationError("Training and validation must both contain both classes.")
     if not 0 <= threshold <= 1:
         raise ModelEvaluationError("The threshold must be between zero and one.")
+    if cv_folds not in {0, 3, 5}:
+        raise ModelEvaluationError("Choose zero, three or five training CV folds.")
+    if cv_folds and min(training_labels.count(0), training_labels.count(1)) < cv_folds:
+        raise ModelEvaluationError("Too few examples per class for training cross-validation.")
     results: list[ModelResult] = []
     failures: list[ModelFailure] = []
     best_pipeline: Pipeline | None = None
     best_score = -1.0
+    validation_scores: dict[str, list[float]] = {}
     factories = {
         "dummy_prior": DummyClassifier,
         "logistic_regression": LogisticRegression,
@@ -166,10 +174,23 @@ def fit_and_compare_models(
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("error", ConvergenceWarning)
+                cv_scores = None
+                if cv_folds:
+                    if progress:
+                        progress(f"cross_validation:{candidate_id}")
+                    cv_scores = cross_val_score(
+                        pipeline,
+                        training,
+                        training_labels,
+                        cv=StratifiedKFold(cv_folds, shuffle=True, random_state=random_seed),
+                        scoring="average_precision",
+                        n_jobs=1,
+                        error_score="raise",
+                    )
                 pipeline.fit(training, training_labels)
-            metrics = evaluate_binary(
-                validation_labels, positive_scores(pipeline, validation), threshold
-            )
+            scores = positive_scores(pipeline, validation)
+            metrics = evaluate_binary(validation_labels, scores, threshold)
+            validation_scores[candidate_id] = scores
         except (ValueError, RuntimeError, ConvergenceWarning) as exc:
             failures.append(
                 ModelFailure(
@@ -193,6 +214,10 @@ def fit_and_compare_models(
                 parameters=parameters,
                 elapsed_seconds=time.monotonic() - started,
                 validation=metrics,
+                training_cv_average_precision=float(np.mean(cv_scores))
+                if cv_scores is not None
+                else None,
+                training_cv_std=float(np.std(cv_scores)) if cv_scores is not None else None,
                 warnings=notes,
             )
         )
@@ -200,7 +225,7 @@ def fit_and_compare_models(
             best_pipeline, best_score = pipeline, metrics.average_precision
     if best_pipeline is None:
         raise ModelEvaluationError("All candidates failed. Review the feature schema and data.")
-    return FittedComparison(results, best_pipeline, failures)
+    return FittedComparison(results, best_pipeline, failures, validation_scores)
 
 
 def compare_models(

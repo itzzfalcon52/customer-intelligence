@@ -1,6 +1,10 @@
 # Customer Intelligence — Product and Development Roadmap
 
-Updated October 12, 2026. The P0/P1 backend and marketing frontend are implemented; account access, core product screens and P2 remain planned. Sections below describe product intent as well as future work; the current-state section and backend walkthrough are authoritative for shipped behavior.
+Updated October 13, 2026. The P0/P1 backend, marketing frontend and email/password accounts are implemented; core product screens and P2 remain planned. Sections below describe product intent as well as future work; the current-state section and backend walkthrough are authoritative for shipped behavior.
+
+> October 29 update: the approved direction is autonomous retention agents for B2B SaaS. See
+> [product strategy](docs/product-strategy.md) for milestones M1–M6. Those milestones are planned unless
+> marked implemented in the backend/workspace docs.
 
 ## 1. What we are building
 
@@ -43,7 +47,7 @@ one bounded SDK tool loop, not LangChain/LangGraph or vector retrieval. Tests mo
 
 ### Remaining product work
 
-The React/Vite marketing pages are implemented, with disabled login/signup design previews. Account access remains planned. Upload/goal forms, plots, job progress/cancellation UI,
+The React/Vite marketing pages and email/password signup/login are implemented. Live account access requires the Neon database configuration in docs/auth.md. Upload/goal forms, plots, job progress/cancellation UI,
 report/history screens and evidence navigation must be wired to the real backend. Public deployment,
 real identity/tenancy, chronological/grouped evaluation and P2 integrations are not implemented.
 Backend completion is not hackathon submission completion or proof of startup demand.
@@ -486,3 +490,19 @@ Example first implementation request:
 > Read AGENTS.md and roadmap.md. Implement only M1: a CSV upload endpoint, deterministic dataset profile, persisted dataset metadata, and a minimal React upload/preview flow. Include useful errors and focused upload/profile checks. Do not add training, scoring, agents, or extra screens. Explain the implementation and how I can verify it.
 
 The authorized P0/P1 backend pass is complete. The next suggested work is frontend integration when requested; the P2 backlog is not authorization for external integrations, outreach or deployment.
+
+## Email/password accounts — October 13, 2026
+
+Implemented in apps/backend using Better Auth, Prisma and PostgreSQL, configured for Neon. User/session/account and organisation/membership schema, immediate signup, login, server-checked account endpoint, and logout are included. No email verification or Google provider is enabled. Frontend account forms and /app connect to this service. Live Neon verification requires the owner’s database connection. Python ML ownership integration remains a separate milestone. See docs/auth.md.
+
+## Core workspace — October 13, 2026
+
+Implemented frontend coverage for the existing P0/P1 backend: upload/profile/target/task/plan/split; comparison/search/jobs/cancellation; validation/final evaluation/calibration; scoring/value priority/exports; diagnostics/segments/rules/customer sensitivity/leakage; reports/run comparison; evidence copilot/conversation history; data deletion and settings. FastAPI verifies Better Auth sessions and isolates personal-account storage. Neon is connected for identity. See docs/workspace.md for exact coverage and limits. Shared organisation ML collaboration, external connectors/outreach, S3 deployment and other P2 work remain planned.
+
+## October 15 retention actions milestone
+
+Implemented schema semantics and reviewable revised tasks, outreach drafts, assumption-based budget
+scenarios, a bounded rule challenger, automatic optional executive briefings/drafts, guided workspace
+navigation, an explicitly synthetic connector demo, training CV diagnostics and OOF cutoff policies.
+See [the implementation guide](docs/retention-studio.md). Live CRM sync, message sending, causal uplift
+measurement, time/group splits and public deployment remain unimplemented.

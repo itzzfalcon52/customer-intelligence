@@ -1,0 +1,67 @@
+[
+  {
+    "body": {
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "logprobs": null,
+          "message": {
+            "annotations": null,
+            "audio": null,
+            "content": null,
+            "function_call": null,
+            "reasoning": null,
+            "reasoning_content": null,
+            "refusal": null,
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{\"paragraphs\":[\"Comparing four baseline models (dummy_prior, logistic_regression, random_forest, xgboost) across 840 training rows, logistic_regression was selected by validation average precision of 0.785, outperforming dummy_prior (0.461) and delivering a 1.7\u00d7 lift over the prior baseline.\",\"At the fixed 0.500 threshold logistic_regression flagged 75 of 180 validation customers, achieving precision of 0.707 and recall of 0.639; it missed 30 churners and produced 22 false alerts, giving an F1 of 0.671.\",\"Before launching any outreach, verify feature availability and cost structure; no measured intervention effect or financial return exists, and the reserved test partition must be used for final performance confirmation.\"]}",
+                  "name": "deliver_result"
+                },
+                "id": "call_efbf01da1fbc400eb4159d87",
+                "type": "function"
+              }
+            ]
+          },
+          "stop_reason": null,
+          "token_ids": null
+        }
+      ],
+      "created": 1793250425,
+      "ec_transfer_params": null,
+      "id": "chatcmpl-183c845a",
+      "kv_transfer_params": null,
+      "model": "nvidia/Nemotron-3_5-Lightning",
+      "moderation": null,
+      "object": "chat.completion",
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "completion_tokens": 206,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": null
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 6122,
+        "prompt_tokens": 6122,
+        "prompt_tokens_details": null,
+        "total_tokens": 6328
+      }
+    },
+    "request": {
+      "messages": 2,
+      "tools": [
+        "deliver_result"
+      ]
+    },
+    "status": 200
+  }
+]

@@ -16,6 +16,10 @@ class TrainRequest(StrictRequest):
     idempotency_key: UUID
     search_trials: int = Field(default=0, ge=0, le=8)
     threshold: float = Field(default=0.5, ge=0, le=1)
+    generate_briefing: bool = False
+    cv_folds: Literal[0, 3, 5] = 0
+    threshold_policy: Literal["fixed", "f1", "precision_at_recall"] = "fixed"
+    minimum_recall: float = Field(default=0.5, gt=0, le=1)
 
 
 class RunActionRequest(StrictRequest):
@@ -23,12 +27,23 @@ class RunActionRequest(StrictRequest):
     idempotency_key: UUID
 
 
+class OutreachOptions(StrictRequest):
+    provider_consent: Literal[True]
+    product_name: str = Field(min_length=1, max_length=100)
+    approved_offer: str = Field(min_length=1, max_length=400)
+    permitted_features: list[str] = Field(default_factory=list, max_length=12)
+    channel: Literal["email", "sms"] = "email"
+
+
 class ScoreRequest(RunActionRequest):
+    outreach: OutreachOptions | None = None
     dataset_id: UUID
-    contact_count: int = Field(default=50, ge=1, le=50_000)
+    contact_count: int = Field(default=50, ge=1, le=10_000_000)
     value_column: str | None = Field(default=None, min_length=1, max_length=250)
     value_unit: str | None = Field(default=None, max_length=30)
     ranking: Literal["risk", "risk_x_value"] = "risk"
+    # Share of the contact list held back at random as a comparison group (0 = none).
+    holdout_rate: float = Field(default=0.0, ge=0.0, le=0.5)
 
     @field_validator("value_unit")
     @classmethod
@@ -44,7 +59,7 @@ class DiagnosticsRequest(RunActionRequest):
 
 class ExplanationRequest(StrictRequest):
     score_id: UUID
-    row_reference: int = Field(ge=1, le=50_000)
+    row_reference: int = Field(ge=1, le=10_000_000)
     idempotency_key: UUID
 
 
@@ -96,6 +111,8 @@ class CustomerScore(BaseModel):
     customer_value: float | None = None
     exposure_proxy: float | None = None
     priority_rank: int | None = None
+    # "contact" or "holdout" for accounts on the contact list; None for everyone else.
+    group: Literal["contact", "holdout"] | None = None
 
 
 class ScoreManifest(BaseModel):
@@ -111,6 +128,9 @@ class ScoreManifest(BaseModel):
     value_unit: str | None
     rows_sha256: str
     warnings: list[str]
+    holdout_rate: float = 0.0
+    holdout_seed: int | None = None
+    holdout_count: int = 0
 
 
 class ScorePage(BaseModel):
@@ -138,6 +158,13 @@ class AssistantRequest(StrictRequest):
     idempotency_key: UUID
     question: str = Field(min_length=1, max_length=2000)
     allow_training: bool = False
+    allow_actions: bool = False
+    # Memory, discovery, account lookup and approval requests (the app enables these).
+    workspace_tools: bool = False
+    campaign_features: list[str] = Field(default_factory=list, max_length=12)
+    approved_offer: str = Field(
+        default="A helpful check-in; no discounts promised.", max_length=400
+    )
 
     @field_validator("question")
     @classmethod
@@ -154,6 +181,10 @@ class AssistantResponse(BaseModel):
     answer: str
     events: list[ToolEvent]
     model_call_count: int
+    # Absent on turns saved before tracing existed.
+    trace_id: UUID | None = None
+    # Numeric grounding check of the answer against tool outputs (absent on older turns).
+    verification: dict | None = None
 
 
 class RunComparisonRequest(StrictRequest):

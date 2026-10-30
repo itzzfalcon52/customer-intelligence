@@ -3,6 +3,8 @@ packages:
   - packages/*
 allowBuilds:
   esbuild: true
+  prisma: true
+  '@prisma/engines': true
 storeDir: .pnpm-store
 saveExact: true
 verifyDepsBeforeRun: error

@@ -65,6 +65,7 @@ def test_real_separate_worker_training(backend, trained):
         **os.environ,
         "CI_DATA_DIRECTORY": str(backend["settings"].data_directory),
         "CI_ENVIRONMENT": "test",
+        "CI_AUTH_MODE": "private",
         "NEBIUS_API_KEY": "test-key",
         "NEBIUS_BASE_URL": "https://example.invalid/v1",
         "NEBIUS_MODEL": "test-model",
@@ -262,7 +263,9 @@ def test_api_token_and_invalid_inputs(tmp_path):
     from fastapi.testclient import TestClient
     from pydantic import SecretStr
 
-    settings = Settings(_env_file=None, data_directory=tmp_path, api_token=SecretStr("private"))
+    settings = Settings(
+        auth_mode="private", _env_file=None, data_directory=tmp_path, api_token=SecretStr("private")
+    )
     with TestClient(create_app(settings)) as client:
         assert client.get("/api/v1/health").status_code == 200
         assert client.get("/api/v1/datasets").status_code == 401
@@ -283,7 +286,14 @@ def test_api_token_and_invalid_inputs(tmp_path):
             == 422
         )
     with pytest.raises(RuntimeError):
-        create_app(Settings(_env_file=None, data_directory=tmp_path, environment="production"))
+        create_app(
+            Settings(
+                auth_mode="private",
+                _env_file=None,
+                data_directory=tmp_path,
+                environment="production",
+            )
+        )
 
 
 def test_excel_import_and_rejection(backend):

@@ -4,7 +4,7 @@
 
 This file gives Codex repository context and working instructions. Read `README.md` for setup and `roadmap.md` for the detailed product plan. Follow the user's current request; the roadmap is a backlog, not authorization to implement all features.
 
-The user authorized direct implementation and testing of the complete P0 and P1 backend on October 11, 2026. Preserve user work and data. Explain progress and verify behavior. Marketing frontend pages are implemented. On October 12, the user explicitly requested removal of the added auth architecture. Login/signup are disabled design previews; account access is unimplemented. Deployment and P2 integrations remain outside this authorization.
+The user authorized direct implementation and testing of the complete P0 and P1 backend on October 11, 2026. Preserve user work and data. Explain progress and verify behavior. Marketing frontend pages are implemented. The earlier auth architecture was removed. On October 13, the user authorized a new apps/backend service with Better Auth, Prisma/PostgreSQL on Neon and email/password signup/login without email verification. This is the current auth implementation. Deployment and P2 integrations remain outside this authorization.
 
 ## Product context
 
@@ -21,9 +21,9 @@ The main builder has trained deep-learning models and learned GenAI/LangChain co
 - P1: Excel, importance/sensitivity, contact curves, heuristic/segments, value priority, calibration,
   leakage demo, reports, run comparison, conversations and evidence-linked agent.
 - SQLite metadata plus ignored `.data` artifacts; preserve existing customer files/runs.
-- One private local workspace with optional bearer token; macOS/Linux worker. No multi-tenant/public
+- Isolated personal-account workspaces with server-validated sessions; explicit private CLI mode and a macOS/Linux worker. No public
   deployment, time/group splits, regression or P2 integrations.
-- React/Vite marketing pages are implemented; account access and core product screens remain unimplemented.
+- React/Vite marketing and authenticated core workspace screens are implemented. See docs/workspace.md.
 - Tests in `apps/api/tests`, runnable demo `apps/api/demo.py`, contracts at `/docs` and walkthrough
   `docs/backend.md`. Agent tests mock the provider; do not call live Nebius without reason.
 - Existing `check_*.py` learning scripts remain available. Pipeline artifacts fingerprint
@@ -107,3 +107,33 @@ Before public hosting, implement real identity/session validation and suitable d
 Next milestone is the frontend workflow against the real backend contracts, only when requested. Read `docs/backend.md` before changing jobs/evaluation/agent boundaries. All numerical claims must come from computed evidence. Do not broaden task types or deploy as part of a frontend request.
 
 This file uses the standard uppercase filename for project instructions; see the [official AGENTS.md guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+
+The account backend lives in apps/backend. It uses Better Auth 1.7.7 with the Prisma adapter and organisation plugin. No email verification, SMTP, reset flow or Google provider is enabled in this milestone. Never add them without a new request. Keep credentials in apps/backend/.env and never VITE_* or broad Turbo task environments. Set up Neon with pnpm setup:backend. pnpm dev starts web, backend and Python API; pnpm dev:web starts only web. FastAPI now verifies Better Auth sessions through the private Node bridge and isolates personal account metadata/artifacts. Shared organisation ML access and public deployment remain planned. Tests require a separate local AUTH_TEST_DATABASE_URL ending in _test, never Neon.
+
+On October 13 the user authorized the core workspace UI for all existing P0/P1 features. It uses TanStack Query for scoped server state and Zustand for temporary UI preferences. Account mode is the default. Never weaken session guarding to preview the UI; synthetic visual fixtures must use a separate temporary test server. Existing legacy data is preserved; no automatic account import. Start pnpm dev and pnpm worker:api. See docs/workspace.md for feature coverage, remaining P2 scope and verification.
+
+On October 15 the user authorized the retention upgrades in the attached feature proposal and training
+improvements. See docs/retention-studio.md. AI actions have typed contracts, scoped tools, explicit
+provider consent and draft-only outreach. Never execute generated Python or present synthetic CRM
+data as a real connection. Budget outputs are assumptions, not measured ROI. Semantic review creates
+a confirmed replacement task, never edits an existing run. ml/preprocessing.py remains unchanged.
+Training CV stays within training rows; auto cutoffs use training OOF scores and final test remains
+reserved. All future modifications must preserve legacy pipelines and current account isolation.
+
+On October 29 the user approved docs/product-strategy.md (autonomous retention agents for B2B SaaS,
+milestones M1–M6) and authorized implementing M1 only: one LLM gateway, tracing, versioned prompts, an
+agent eval harness and streaming agent turns. M2–M6 each need a new go-ahead. The integrity rules
+above still apply.
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+<!-- END:turborepo-agent-rules -->
+
+After reviewing M1, the user told Claude to proceed with M2. Its implemented scope is listed in docs/product-strategy.md.

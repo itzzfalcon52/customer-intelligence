@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sqlmodel import Session
 
+from customer_intelligence.agent.tracing import traced
 from customer_intelligence.core.config import get_settings
 from customer_intelligence.core.database import engine
 from customer_intelligence.core.errors import WorkflowError
@@ -46,8 +47,48 @@ def execute(job_id: UUID) -> None:
                     payload["search_trials"],
                     payload["threshold"],
                     lambda stage: set_stage(session, job_id, stage),
+                    cv_folds=payload.get("cv_folds", 0),
+                    threshold_policy=payload.get("threshold_policy", "fixed"),
+                    minimum_recall=payload.get("minimum_recall", 0.5),
                 )
                 result = UUID(destination.name)
+                if payload.get("generate_briefing"):
+                    import json
+                    from uuid import NAMESPACE_URL, uuid5
+
+                    from customer_intelligence.schemas.retention import BriefingRequest
+                    from customer_intelligence.services.retention import executive_briefing
+
+                    status: dict = {"state": "pending"}
+                    try:
+                        set_stage(session, job_id, "executive_briefing")
+                        with traced(session, "job.executive_briefing"):
+                            briefing = executive_briefing(
+                                BriefingRequest(
+                                    run_id=result,
+                                    provider_consent=True,
+                                    idempotency_key=uuid5(NAMESPACE_URL, f"{job_id}:briefing"),
+                                ),
+                                session,
+                                settings,
+                            )
+                        status = {
+                            "state": "succeeded",
+                            "analysis_id": briefing["id"],
+                            "paragraphs": briefing["paragraphs"],
+                            "source": "nebius",
+                        }
+                    except Exception as exc:
+                        session.rollback()
+                        status = {
+                            "state": "failed",
+                            "message": str(exc)
+                            if isinstance(exc, WorkflowError)
+                            else "AI briefing failed. The trained model is saved and ready.",
+                        }
+                    temporary = destination / ".briefing-status.tmp"
+                    temporary.write_text(json.dumps(status), encoding="utf-8")
+                    temporary.replace(destination / "briefing-status.json")
             elif kind == "calibrate":
                 from customer_intelligence.services.calibration import calibrate_run
 
@@ -55,7 +96,40 @@ def execute(job_id: UUID) -> None:
             elif kind == "evaluate":
                 result = final_evaluation(session, settings, UUID(payload["run_id"]))
             elif kind == "score":
-                result = score_dataset(session, settings, ScoreRequest.model_validate(payload))
+                score_request = ScoreRequest.model_validate(payload)
+                result = score_dataset(session, settings, score_request)
+                if score_request.outreach:
+                    import json
+                    from uuid import NAMESPACE_URL, uuid5
+
+                    from customer_intelligence.schemas.retention import CampaignRequest
+                    from customer_intelligence.services.retention import generate_retention_campaign
+
+                    try:
+                        set_stage(session, job_id, "retention_drafts")
+                        with traced(session, "job.campaign"):
+                            campaign = generate_retention_campaign(
+                                CampaignRequest(
+                                    score_id=result,
+                                    idempotency_key=uuid5(NAMESPACE_URL, f"{job_id}:campaign"),
+                                    **score_request.outreach.model_dump(),
+                                ),
+                                session,
+                                settings,
+                            )
+                        campaign_status = {"state": "succeeded", "analysis_id": campaign["id"]}
+                    except Exception as exc:
+                        session.rollback()
+                        campaign_status = {
+                            "state": "failed",
+                            "message": str(exc)
+                            if isinstance(exc, WorkflowError)
+                            else "AI drafting failed. Customer scores are saved.",
+                        }
+                    score_folder = settings.data_directory / "scores" / str(result)
+                    temporary = score_folder / ".campaign-status.tmp"
+                    temporary.write_text(json.dumps(campaign_status), encoding="utf-8")
+                    temporary.replace(score_folder / "campaign-status.json")
             elif kind == "diagnostics":
                 result = diagnostics(session, settings, DiagnosticsRequest.model_validate(payload))
             elif kind == "explain":
@@ -66,6 +140,11 @@ def execute(job_id: UUID) -> None:
                     payload["row_reference"],
                     UUID(payload["idempotency_key"]),
                 )
+            elif kind == "cycle":
+                from customer_intelligence.services.autonomy import run_cycle
+
+                session.info["settings"] = settings
+                result = run_cycle(session, settings, job_id)
             elif kind == "leakage":
                 result = leakage_demonstration(
                     session,
@@ -100,6 +179,11 @@ def execute(job_id: UUID) -> None:
                 else f"{kind} failed ({type(exc).__name__}). Review data/schema compatibility."
             )
             finish_job(session, job_id, None, error)
+            if kind == "cycle":
+                from customer_intelligence.services.autonomy import record_failure
+
+                session.info["settings"] = settings
+                record_failure(session, job_id, error)
 
 
 def main() -> None:

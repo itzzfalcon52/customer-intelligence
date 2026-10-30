@@ -1,43 +1,73 @@
+from collections.abc import Callable
+
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
-class BodyLimitMiddleware:
-    """Bound upload bytes before multipart parsing, including chunked requests."""
+class _TooLarge(Exception):
+    pass
 
-    def __init__(self, app: ASGIApp, max_bytes: int = 11 * 1024 * 1024) -> None:
+
+def _too_large(limit: int) -> JSONResponse:
+    return JSONResponse(
+        {
+            "code": "request_too_large",
+            "message": f"Request exceeds {limit / 1024 / 1024:.0f} MB.",
+        },
+        status_code=413,
+    )
+
+
+class BodyLimitMiddleware:
+    """Bound request bytes per path, streaming the body instead of buffering it.
+
+    A declared Content-Length over the limit is refused before anything is read; chunked bodies
+    are counted as they arrive and stopped as soon as they pass the limit.
+    """
+
+    def __init__(self, app: ASGIApp, limit_for: Callable[[str], int]) -> None:
         self.app = app
-        self.max_bytes = max_bytes
+        self.limit_for = limit_for
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http" or scope["method"] in {"GET", "HEAD", "OPTIONS"}:
             await self.app(scope, receive, send)
             return
-        chunks = []
-        total = 0
-        while True:
-            message = await receive()
-            if message["type"] == "http.disconnect":
-                return
-            body = message.get("body", b"")
-            total += len(body)
-            if total > self.max_bytes:
+        limit = self.limit_for(scope["path"])
+        headers = dict(scope.get("headers") or [])
+        declared = headers.get(b"content-length")
+        if declared is not None:
+            try:
+                if int(declared) > limit:
+                    await _too_large(limit)(scope, receive, send)
+                    return
+            except ValueError:
                 response = JSONResponse(
-                    {"code": "request_too_large", "message": "Request exceeds 11 MiB."},
-                    status_code=413,
+                    {"code": "invalid_content_length", "message": "Invalid content length."},
+                    status_code=400,
                 )
                 await response(scope, receive, send)
                 return
-            chunks.append(body)
-            if not message.get("more_body", False):
-                break
-        delivered = False
+        total = 0
+        started = False
 
-        async def bounded_receive() -> Message:
-            nonlocal delivered
-            if not delivered:
-                delivered = True
-                return {"type": "http.request", "body": b"".join(chunks), "more_body": False}
-            return await receive()
+        async def counted() -> Message:
+            nonlocal total
+            message = await receive()
+            if message["type"] == "http.request":
+                total += len(message.get("body", b""))
+                if total > limit:
+                    raise _TooLarge
+            return message
 
-        await self.app(scope, bounded_receive, send)
+        async def tracked(message: Message) -> None:
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, counted, tracked)
+        except _TooLarge:
+            if not started:
+                await _too_large(limit)(scope, receive, send)

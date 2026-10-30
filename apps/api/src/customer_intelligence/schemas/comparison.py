@@ -41,6 +41,8 @@ class ModelResult(BaseModel):
     parameters: dict[str, int | float | str]
     validation: BinaryMetrics
     warnings: list[str] = Field(default_factory=list)
+    training_cv_average_precision: float | None = None
+    training_cv_std: float | None = None
 
 
 class ComparisonReport(BaseModel):
@@ -62,4 +64,8 @@ class ComparisonReport(BaseModel):
     best_validation_candidate_id: str | None = None
     failures: list[ModelFailure] = Field(default_factory=list)
     selection_warning: str | None = None
+    training_cv_folds: int = 0
+    threshold_policy: str = "fixed"
+    threshold_selection: dict = Field(default_factory=dict)
+    executive_briefing: dict = Field(default_factory=dict)
     test_evaluated: Literal[False] = False

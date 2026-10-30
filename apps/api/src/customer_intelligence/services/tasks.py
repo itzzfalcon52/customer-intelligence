@@ -7,7 +7,6 @@ from customer_intelligence.models.dataset import Dataset
 from customer_intelligence.models.task import Task
 from customer_intelligence.schemas.target import TargetCheckRequest
 from customer_intelligence.schemas.task import TaskCreateRequest
-from customer_intelligence.services.datasets import MAX_UPLOAD_BYTES
 from customer_intelligence.services.profiling import (
     DatasetProfileError,
     load_dataset_frame,
@@ -63,6 +62,19 @@ def create_task(
                 "This workflow requires a non-missing, unique identifier per row."
             )
 
+    if request.time_column is not None:
+        if request.time_column not in frame.columns:
+            raise TaskValidationError("The selected time column does not exist.")
+        if request.time_column in features or request.time_column in {
+            request.target_column,
+            request.id_column,
+        }:
+            raise TaskValidationError("The time column cannot be the target, ID or an input.")
+        import pandas as pd
+
+        if bool(pd.to_datetime(frame[request.time_column], errors="coerce").isna().any()):
+            raise TaskValidationError("Every row needs a valid date in the time column.")
+
     for name in features:
         if name not in frame.columns:
             raise TaskValidationError(f"Feature column '{name}' does not exist.")
@@ -74,12 +86,11 @@ def create_task(
 
     try:
         with path.open("rb") as source:
-            content = source.read(MAX_UPLOAD_BYTES + 1)
+            digest = sha256()
+            while chunk := source.read(1024 * 1024):
+                digest.update(chunk)
     except OSError as exc:
         raise DatasetProfileError("The stored CSV could not be read.") from exc
-
-    if len(content) > MAX_UPLOAD_BYTES:
-        raise DatasetProfileError("The stored dataset exceeds the size limit.")
 
     task = Task(
         dataset_id=dataset.id,
@@ -89,7 +100,9 @@ def create_task(
         feature_columns=list(features),
         label_mapping=target.label_mapping,
         features_available_at_prediction=request.features_available_at_prediction,
-        dataset_sha256=sha256(content).hexdigest(),
+        dataset_sha256=digest.hexdigest(),
+        time_column=request.time_column,
+        evaluation_strategy="time_ordered" if request.time_column else "stratified_random",
     )
 
     try:

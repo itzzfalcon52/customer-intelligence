@@ -204,7 +204,9 @@ def customers(
 
 @router.get("/scores/{score_id}/export")
 def export(
-    score_id: UUID, settings: Config, top_k: Annotated[int | None, Query(ge=1, le=50_000)] = None
+    score_id: UUID,
+    settings: Config,
+    top_k: Annotated[int | None, Query(ge=1, le=10_000_000)] = None,
 ) -> Response:
     manifest = read_score(score_id, settings.data_directory)
     content = export_scores(manifest, read_customers(manifest, settings.data_directory), top_k)
@@ -311,3 +313,58 @@ def compare_runs(request: RunComparisonRequest, settings: Config) -> dict:
             "leaderboard comparison misleading."
         ),
     }
+
+
+@router.get("/scores")
+def score_history(
+    settings: Config, limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0)
+) -> list[dict]:
+    directory = settings.data_directory / "scores"
+    if not directory.exists():
+        return []
+    paths = sorted(
+        (p for p in directory.iterdir() if p.is_dir() and not p.name.startswith(".")),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return [
+        read_score(UUID(p.name), settings.data_directory).model_dump(mode="json")
+        for p in paths[offset : offset + limit]
+    ]
+
+
+@router.get("/analyses")
+def analysis_history(
+    settings: Config, limit: int = Query(25, ge=1, le=100), offset: int = Query(0, ge=0)
+) -> list[dict]:
+    directory = settings.data_directory / "analyses"
+    if not directory.exists():
+        return []
+    paths = sorted(
+        (p for p in directory.iterdir() if p.is_dir() and not p.name.startswith(".")),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return [dict(read_json(p / "manifest.json")) for p in paths[offset : offset + limit]]
+
+
+@router.get("/runs/{run_id}/briefing")
+def saved_briefing(run_id: UUID, settings: Config) -> dict:
+    run = read_training_run(run_id, settings.data_directory)
+    path = settings.data_directory / "runs" / str(run_id) / "briefing-status.json"
+    if path.exists():
+        payload = read_json(path)
+        if isinstance(payload, dict):
+            return payload
+    return {"state": "not_requested", "source": "computed", **run.report.executive_briefing}
+
+
+@router.get("/scores/{score_id}/campaign")
+def score_campaign(score_id: UUID, settings: Config) -> dict:
+    read_score(score_id, settings.data_directory)
+    path = settings.data_directory / "scores" / str(score_id) / "campaign-status.json"
+    if path.exists():
+        payload = read_json(path)
+        if isinstance(payload, dict):
+            return payload
+    return {"state": "not_requested"}

@@ -21,5 +21,7 @@ class Task(SQLModel, table=True):
     features_available_at_prediction: bool
     dataset_sha256: str
     evaluation_strategy: str = "stratified_random"
+    # Set for time-ordered evaluation: rows are split by this date column, oldest first.
+    time_column: str | None = None
     random_seed: int = 42
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

@@ -18,7 +18,14 @@
     "format:check": "prettier --check .",
     "setup:python": "node scripts/setup-python.mjs",
     "worker:api": "pnpm --filter @ci/api worker",
-    "test:api": "pnpm --filter @ci/api test"
+    "test:api": "pnpm --filter @ci/api test",
+    "dev:backend": "pnpm --filter @ci/backend dev",
+    "setup:backend": "node scripts/setup-backend.mjs",
+    "setup:connectors": "node scripts/setup-connectors.mjs",
+    "test:backend": "pnpm --filter @ci/backend test",
+    "eval:agent": "pnpm --filter @ci/api eval",
+    "eval:agent:live": "pnpm --filter @ci/api eval:live",
+    "eval:agent:record": "pnpm --filter @ci/api eval:record"
   },
   "devDependencies": {
     "turbo": "2.11.7",

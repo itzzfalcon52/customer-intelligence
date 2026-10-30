@@ -1,0 +1,133 @@
+[
+  {
+    "body": {
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "logprobs": null,
+          "message": {
+            "annotations": null,
+            "audio": null,
+            "content": null,
+            "function_call": null,
+            "reasoning": null,
+            "reasoning_content": null,
+            "refusal": null,
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{\"resource_id\":\"{{dataset_id}}\"}",
+                  "name": "inspect_dataset"
+                },
+                "id": "call_fc08f302099b4575a4ded156",
+                "type": "function"
+              },
+              {
+                "function": {
+                  "arguments": "{\"resource_id\":\"{{task_id}}\"}",
+                  "name": "read_task"
+                },
+                "id": "call_196d09a655c04194bf062104",
+                "type": "function"
+              }
+            ]
+          },
+          "stop_reason": null,
+          "token_ids": null
+        }
+      ],
+      "created": 1793251235,
+      "ec_transfer_params": null,
+      "id": "chatcmpl-0997edfd",
+      "kv_transfer_params": null,
+      "model": "nvidia/Nemotron-3_5-Lightning",
+      "moderation": null,
+      "object": "chat.completion",
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "completion_tokens": 112,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": null
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 1092,
+        "prompt_tokens": 1092,
+        "prompt_tokens_details": null,
+        "total_tokens": 1204
+      }
+    },
+    "request": {
+      "messages": 2,
+      "tools": [
+        "inspect_dataset",
+        "read_task"
+      ]
+    },
+    "status": 200
+  },
+  {
+    "body": {
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "logprobs": null,
+          "message": {
+            "annotations": null,
+            "audio": null,
+            "content": "**Selected inputs (from the task definition)**  \n`plan`, `billing_cycle`, `seats`, `active_users_30d`, `login_change_pct`, `support_tickets_90d`, `failed_payments_90d`, `nps`, `mrr`\n\n**Risk analysis** \u2013 The column `account_id` is a unique identifier (every row has a distinct value). Including identifiers as predictive inputs causes data leakage and is prohibited. The dataset inspection also flagged this warning.\n\nAll other columns listed as features are valid, numeric or categorical inputs available at prediction time. No other risky columns were found.\n\n*If you would like a formal semantic analysis of these features, I can call `analyze_schema_semantics`.*",
+            "function_call": null,
+            "reasoning": null,
+            "reasoning_content": null,
+            "refusal": null,
+            "role": "assistant",
+            "tool_calls": null
+          },
+          "stop_reason": null,
+          "token_ids": null
+        }
+      ],
+      "created": 1793251236,
+      "ec_transfer_params": null,
+      "id": "chatcmpl-b3a35aa7",
+      "kv_transfer_params": null,
+      "model": "nvidia/Nemotron-3_5-Lightning",
+      "moderation": null,
+      "object": "chat.completion",
+      "prompt_logprobs": null,
+      "prompt_token_ids": null,
+      "service_tier": null,
+      "system_fingerprint": null,
+      "usage": {
+        "completion_tokens": 162,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": null
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 2486,
+        "prompt_tokens": 2486,
+        "prompt_tokens_details": null,
+        "total_tokens": 2648
+      }
+    },
+    "request": {
+      "messages": 5,
+      "tools": [
+        "inspect_dataset",
+        "read_task"
+      ]
+    },
+    "status": 200
+  }
+]

@@ -1,0 +1,36 @@
+# {$DOMAIN} comes from .env. Caddy gets and renews the HTTPS certificate automatically.
+{$DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size {$MAX_REQUEST_MB:820}MB
+	}
+
+	# Same routing as the Vite dev proxy.
+	handle /api/auth/* {
+		reverse_proxy backend:3001
+	}
+	handle /api/backend/* {
+		reverse_proxy backend:3001
+	}
+	handle /api/v1/* {
+		reverse_proxy api:8000 {
+			# Large uploads and long AI answers.
+			transport http {
+				read_timeout 10m
+				write_timeout 10m
+			}
+		}
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}

@@ -1,17 +1,21 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
+from sqlalchemy import or_
 from sqlmodel import Session, col, select
 
 from customer_intelligence.agent.inspection import AgentInspectionError
 from customer_intelligence.agent.workflow import chat
+from customer_intelligence.api.streaming import event_stream
 from customer_intelligence.core.config import Settings, get_settings
 from customer_intelligence.core.database import get_session
 from customer_intelligence.core.errors import WorkflowError
 from customer_intelligence.models.conversation import Conversation, ConversationTurn
 from customer_intelligence.models.dataset import Dataset
 from customer_intelligence.models.task import Task
+from customer_intelligence.models.trace import AgentSpan, AgentTrace
 from customer_intelligence.schemas.inspection import InspectionRequest, InspectionResult
 from customer_intelligence.schemas.workflow import AssistantRequest, AssistantResponse
 from customer_intelligence.services.assistant import (
@@ -57,10 +61,57 @@ def message(
     return chat(request, session, settings)
 
 
+@router.post("/messages/stream")
+def message_stream(
+    request: AssistantRequest,
+    http: Request,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> StreamingResponse:
+    """Server-sent events for one turn: model/tool steps as they happen, then the answer.
+
+    The turn runs to completion even if the browser disconnects; it is idempotent, bounded by
+    the same budgets as /messages, and its result is saved to the conversation and trace.
+    """
+    return event_stream(
+        http,
+        lambda session, listener: chat(request, session, settings, listener=listener).model_dump(
+            mode="json"
+        ),
+        "assistant",
+    )
+
+
+@router.get("/traces")
+def traces(
+    session: Annotated[Session, Depends(get_session)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    kind: str | None = None,
+) -> list[AgentTrace]:
+    query = select(AgentTrace)
+    if kind:
+        query = query.where(AgentTrace.kind == kind)
+    return list(session.exec(query.order_by(col(AgentTrace.created_at).desc()).limit(limit)))
+
+
+@router.get("/traces/{trace_id}")
+def trace(trace_id: UUID, session: Annotated[Session, Depends(get_session)]) -> dict:
+    record = session.get(AgentTrace, trace_id)
+    if record is None:
+        raise WorkflowError("Trace not found.", 404, "trace_not_found")
+    spans = session.exec(
+        select(AgentSpan).where(AgentSpan.trace_id == trace_id).order_by(col(AgentSpan.sequence))
+    ).all()
+    return {
+        "trace": record.model_dump(mode="json"),
+        "spans": [span.model_dump(mode="json") for span in spans],
+    }
+
+
 @router.get("/conversations/{conversation_id}")
 def conversation(conversation_id: UUID, session: Annotated[Session, Depends(get_session)]) -> dict:
     record = session.get(Conversation, conversation_id)
-    if record is None:
+    actor = session.info.get("actor")
+    if record is None or (record.owner_id and record.owner_id != actor):
         raise WorkflowError("Conversation not found.", 404)
     turns = session.exec(
         select(ConversationTurn)
@@ -80,3 +131,24 @@ def conversation(conversation_id: UUID, session: Annotated[Session, Depends(get_
             for turn in turns
         ],
     }
+
+
+@router.get("/conversations")
+def conversation_history(
+    session: Annotated[Session, Depends(get_session)], dataset_id: UUID | None = None
+) -> list[dict]:
+    actor = session.info.get("actor")
+    query = select(Conversation).where(
+        or_(col(Conversation.owner_id).is_(None), col(Conversation.owner_id) == actor)
+    )
+    if dataset_id:
+        query = query.where(Conversation.dataset_id == dataset_id)
+    records = session.exec(query.order_by(col(Conversation.created_at).desc()).limit(100)).all()
+    return [
+        {
+            "id": str(record.id),
+            "dataset_id": str(record.dataset_id),
+            "created_at": record.created_at.isoformat(),
+        }
+        for record in records
+    ]

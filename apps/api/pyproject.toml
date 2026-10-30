@@ -27,6 +27,7 @@ dependencies = [
   "langchain>=1,<2",
   "langchain-openai>=1,<2",
   "langgraph>=1,<2",
+  "cryptography>=45,<51",
 ]
 
 [dependency-groups]
