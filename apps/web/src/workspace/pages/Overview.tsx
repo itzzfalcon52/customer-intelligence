@@ -4,6 +4,7 @@ import {
   Activity,
   AlertTriangle,
   ArrowRight,
+  CalendarClock,
   ArrowUpRight,
   BrainCircuit,
   Check,
@@ -525,6 +526,7 @@ function Dashboard() {
           />
         </Reveal>
       </div>
+      <RenewalStrip />
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
         <Card
@@ -700,5 +702,40 @@ function Dashboard() {
         </div>
       </div>
     </>
+  );
+}
+
+/** A one-line pointer to the renewal radar, shown only when billing renewal dates exist. */
+function RenewalStrip() {
+  const radar = useResource<{
+    available: boolean;
+    totals?: { renewing: number; high_risk: number; cancel_scheduled: number };
+  }>('/api/v1/renewals?days=30');
+  const totals = radar.data?.available ? radar.data.totals : undefined;
+  if (!totals?.renewing) return null;
+  return (
+    <Link
+      to="/app/renewals"
+      className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 bg-white px-5 py-3.5 text-sm text-slate-700 shadow-card ring-1 ring-slate-200/80 transition hover:ring-slate-300"
+    >
+      <CalendarClock className="size-4 text-brand-600" />
+      <span>
+        <span className="font-mono font-bold text-tag-ink">
+          {number(totals.renewing)}
+        </span>{' '}
+        accounts renew in the next 30 days
+      </span>
+      <span className="text-rose-700">
+        {number(totals.high_risk)} high-risk
+      </span>
+      {totals.cancel_scheduled > 0 && (
+        <span className="text-slate-600">
+          {number(totals.cancel_scheduled)} already set to cancel
+        </span>
+      )}
+      <span className="ml-auto inline-flex items-center gap-1 font-medium text-brand-700">
+        Renewal radar <ArrowRight className="size-3.5" />
+      </span>
+    </Link>
   );
 }

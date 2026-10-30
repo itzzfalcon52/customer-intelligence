@@ -216,7 +216,8 @@ export function Sources() {
                 Required: accounts (account_id, created_at; cancelled_at when an
                 account left), invoices (account_id, date, amount, status),
                 usage (account_id, date, active_users), tickets (account_id,
-                created_at, subject).
+                created_at, subject). Optional: renews_at in accounts for the
+                renewal radar.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button

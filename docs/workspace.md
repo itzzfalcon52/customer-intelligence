@@ -187,6 +187,13 @@ which date records churn and can allow task creation; billing cards can match wi
 show the match rate and any sync notes. Plays can be delivered as tasks in any CRM that allows
 it. Salesforce, Freshdesk/Freshsales, Chargebee, Intercom and Zendesk show as "Coming soon".
 
+**Renewal radar** (`/app/renewals`, main navigation after At-risk accounts): 30/60/90-day tabs,
+stats (renewing, value renewing, value on high-risk accounts, set to cancel), and a table with
+the triage swatch and rank, renewal date or "overdue", last payment and cycle, risk badge and
+score bar, Nemotron's reason line and holdout/set-to-cancel badges. Sort by risk, date or value;
+export CSV. Without renewal data it explains how to connect billing. Home shows a one-line
+"renewing in 30 days" link when data exists. Currency comes from workspace memory.
+
 **Connector guide** (`/app/guides/connectors`, Advanced → Connector guide, and "Setup guide" /
 "Step-by-step guide" links on every connector card): step-by-step instructions per provider
 (where to create the key, exact scopes, region, revoking access), matching, daily checks and a

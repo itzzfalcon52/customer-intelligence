@@ -14,6 +14,15 @@ export const date = (value: string) =>
     hour: '2-digit',
     minute: '2-digit',
   });
+/** A calendar date such as "2026-10-06", shown without a time and never shifted by timezone. */
+export const calendarDay = (value: string) => {
+  const [y, m, d] = value.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
 export const day = (value: string) =>
   new Date(value).toLocaleDateString(undefined, {
     month: 'short',

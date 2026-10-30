@@ -21,6 +21,7 @@ from customer_intelligence.api.routes.health import router as health_router
 from customer_intelligence.api.routes.investigations import router as investigations_router
 from customer_intelligence.api.routes.operations import router as operations_router
 from customer_intelligence.api.routes.playbooks import router as playbooks_router
+from customer_intelligence.api.routes.renewals import router as renewals_router
 from customer_intelligence.api.routes.retention import router as retention_router
 from customer_intelligence.api.routes.sources import router as sources_router
 from customer_intelligence.api.routes.splits import router as splits_router
@@ -203,6 +204,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         governance_router,
         briefs_router,
         email_router,
+        renewals_router,
     ):
         application.include_router(router, prefix="/api/v1")
 

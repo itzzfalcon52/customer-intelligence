@@ -12,6 +12,7 @@ const INCLUDED = [
   'Daily scheduled checks, drift and measured accuracy',
   'Razorpay, Zoho Billing, Zoho CRM, Stripe and HubSpot connectors, synced daily',
   'Approved plays as Zoho CRM or HubSpot tasks',
+  'A renewal radar: who renews soon, ranked by risk',
   'An email digest after every daily check',
   'Nemotron briefs, account notes and Ask AI, all checked',
   'Holdout groups and measured outreach lift',

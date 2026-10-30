@@ -100,10 +100,17 @@ def build(
                     for s in ended
                 )
             )
+        live = [s for s in subs if s.get("status") in ("active", "authenticated", "pending")]
+        current = live[-1] if live else {}
         accounts.append(
             {
                 "account_id": customer_id,
                 "domain": connectors._domain(customer.get("email")),
+                "renews_at": ""
+                if cancelled
+                else day(current.get("current_end") or current.get("charge_at")),
+                # Razorpay's subscription list has no "cancel at cycle end" flag.
+                "cancel_scheduled": "",
                 "created_at": day(customer.get("created_at")),
                 "cancelled_at": cancelled,
                 "plan": (plan.get("item") or {}).get("name") or latest.get("plan_id") or "",
@@ -161,6 +168,8 @@ def build(
                 "plan",
                 "seats",
                 "billing_cycle",
+                "renews_at",
+                "cancel_scheduled",
             ],
         ),
         "invoices": pd.DataFrame(

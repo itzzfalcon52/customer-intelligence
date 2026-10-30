@@ -41,6 +41,7 @@ export function ConnectorGuide() {
                 'Holdfast only reads. The one exception is creating CRM tasks for approved plays, which stays off until an admin turns it on.',
                 'Email addresses are used only to match billing customers to CRM accounts by company domain; they are not saved with the synced data.',
                 'If a connector says “Needs setup”, the person running the Holdfast server runs pnpm setup:connectors once and restarts the API.',
+                'Billing connectors also read each subscription’s next renewal date (and, for Stripe and Zoho Billing, whether a cancellation is already scheduled) for the Renewal radar. CSV bundles can add a renews_at column to accounts.csv.',
               ]}
             />
           </Section>

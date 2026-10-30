@@ -475,6 +475,27 @@ Razorpay or Zoho Billing for billing and Zoho CRM as the CRM.
 - In development the account backend accepts both `http://localhost:5173` and
   `http://127.0.0.1:5173` (`allowedOrigins`); production accepts exactly `APP_ORIGIN`.
 
+### Renewal radar (October 30)
+
+- Billing connectors add `renews_at` (ISO date) and `cancel_scheduled` ("yes") to `accounts` for
+  active accounts: Stripe `current_period_end` (subscription or, in newer API versions, its
+  first item) and `cancel_at_period_end`/`cancel_at`; Razorpay `current_end` then `charge_at`
+  (no scheduled-cancel flag); Zoho Billing `current_term_ends_at` then `next_billing_at`, with
+  `non_renewing` as set-to-cancel. CSV bundles may include `renews_at`; the synthetic generator
+  derives the next billing anniversary from its own random stream. These columns are never
+  model features (only plan, billing_cycle, seats, industry and region are).
+- `GET /api/v1/renewals?days=30|60|90&sort=risk|date|value[&score_id=]` joins a scoring batch to
+  the source its accounts came from (latest scheduled check first, else the newest batch whose
+  IDs match a source carrying renewal dates). Items: rank, risk score/level, renewal date,
+  days left (negative = overdue), set to cancel, last paid invoice as `amount`, billing cycle,
+  holdout. Ordered set-to-cancel first, then risk rank. "As of" is the source's data end.
+  Without renewal data it returns `available: false` and how to get it.
+- Risk scores stay uncalibrated ranks: the radar never multiplies them by value.
+- `GET /api/v1/renewals/export.csv` is spreadsheet-safe and omits the holdout flag.
+- Each scheduled check adds one aggregate digest line (renewals in 30 days, high-risk count and
+  value, set to cancel) and a link to `/app/renewals`; no account IDs, so Slack and email are safe.
+- Tests: `tests/test_renewals.py`.
+
 ### Email digest (October 30)
 
 - Set `CI_RESEND_API_KEY` and `CI_EMAIL_FROM` (an address on a domain verified in Resend) in

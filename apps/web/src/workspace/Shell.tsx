@@ -19,6 +19,7 @@ import {
   HeartHandshake,
   Target,
   BookOpen,
+  CalendarClock,
   LifeBuoy,
   Radar,
   BarChart3,
@@ -116,6 +117,7 @@ export function WorkspaceRoot() {
 // The everyday path for a customer-success team; the last entry lists extra active prefixes.
 const MAIN: [string, string, LucideIcon, string[]][] = [
   ['/app/scores', 'At-risk accounts', Target, []],
+  ['/app/renewals', 'Renewals', CalendarClock, []],
   ['/app/plays', 'Retention plays', HeartHandshake, []],
   ['/app/monitoring', 'Results', Radar, []],
   ['/app/ask', 'Ask AI', MessagesSquare, []],
@@ -140,6 +142,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/app\/churn/, 'Churn definition'],
   [/^\/app\/models/, 'Models'],
   [/^\/app\/scores/, 'At-risk accounts'],
+  [/^\/app\/renewals/, 'Renewal radar'],
   [/^\/app\/plays/, 'Retention plays'],
   [/^\/app\/investigate/, 'Investigations'],
   [/^\/app\/analyses/, 'Analyses'],

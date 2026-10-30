@@ -192,10 +192,20 @@ def stripe_tables(client: httpx.Client) -> dict[str, pd.DataFrame]:
         cancelled = ""
         if subs and len(ended) == len(subs):
             cancelled = _day(max((s.get("ended_at") or s.get("canceled_at") or 0) for s in ended))
+        live = [s for s in subs if s.get("status") in ("active", "trialing", "past_due")]
+        current = live[-1] if live else {}
+        # Newer Stripe API versions moved the period end onto the subscription item.
+        period_end = current.get("current_period_end") or (
+            ((current.get("items") or {}).get("data") or [{}])[0].get("current_period_end")
+        )
         accounts.append(
             {
                 "account_id": customer["id"],
                 "domain": _domain(customer.get("email")),
+                "renews_at": "" if cancelled else _day(period_end),
+                "cancel_scheduled": "yes"
+                if current.get("cancel_at_period_end") or current.get("cancel_at")
+                else "",
                 "created_at": _day(customer.get("created")),
                 "cancelled_at": cancelled,
                 "plan": price.get("nickname") or price.get("product") or "",
@@ -238,6 +248,8 @@ def stripe_tables(client: httpx.Client) -> dict[str, pd.DataFrame]:
                 "plan",
                 "seats",
                 "billing_cycle",
+                "renews_at",
+                "cancel_scheduled",
             ],
         ),
         "invoices": pd.DataFrame(invoice_rows, columns=["account_id", "date", "amount", "status"]),

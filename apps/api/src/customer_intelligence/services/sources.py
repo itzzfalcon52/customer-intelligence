@@ -318,23 +318,54 @@ def synthetic_tables(
                 str(rng.choice(["Software", "Retail", "Finance", "Healthcare", "Education"])),
             )
         )
-    return {
-        "accounts": pd.DataFrame(
-            rows,
-            columns=[
-                "account_id",
-                "created_at",
-                "cancelled_at",
-                "plan",
-                "seats",
-                "billing_cycle",
-                "industry",
-            ],
-        ),
-        "invoices": pd.DataFrame(invoice_rows, columns=["account_id", "date", "amount", "status"]),
-        "usage": pd.DataFrame(usage_rows, columns=["account_id", "date", "active_users", "logins"]),
-        "tickets": pd.DataFrame(ticket_rows, columns=["account_id", "created_at", "subject"]),
-    }
+    frame = pd.DataFrame(
+        rows,
+        columns=[
+            "account_id",
+            "created_at",
+            "cancelled_at",
+            "plan",
+            "seats",
+            "billing_cycle",
+            "industry",
+        ],
+    )
+    invoices = pd.DataFrame(invoice_rows, columns=["account_id", "date", "amount", "status"])
+    usage = pd.DataFrame(usage_rows, columns=["account_id", "date", "active_users", "logins"])
+    tickets = pd.DataFrame(ticket_rows, columns=["account_id", "created_at", "subject"])
+    # Renewals fall after the last day the data covers, which can run a little past `end`.
+    covered = max(
+        [end_date]
+        + [
+            pd.to_datetime(column, errors="coerce").max()
+            for column in (invoices["date"], usage["date"], tickets["created_at"])
+            if len(column)
+        ]
+    )
+    _add_renewals(frame, covered, np.random.default_rng(seed + 1))
+    return {"accounts": frame, "invoices": invoices, "usage": usage, "tickets": tickets}
+
+
+def _add_renewals(accounts: pd.DataFrame, end: pd.Timestamp, rng: np.random.Generator) -> None:
+    """Next billing anniversary after the data end for active accounts, as a billing system
+    reports it, and a few cancellations already scheduled. Uses its own random stream so the
+    rest of the synthetic data is unchanged. Never a model feature."""
+    renews, scheduled = [], []
+    for created, cancelled, cycle in zip(
+        accounts["created_at"], accounts["cancelled_at"], accounts["billing_cycle"], strict=True
+    ):
+        if cancelled:
+            renews.append("")
+            scheduled.append("")
+            continue
+        step = pd.DateOffset(years=1) if cycle == "annual" else pd.DateOffset(months=1)
+        date = pd.Timestamp(created)
+        while date <= end:
+            date += step
+        renews.append(date.date().isoformat())
+        scheduled.append("yes" if rng.random() < 0.03 else "")
+    accounts["renews_at"] = renews
+    accounts["cancel_scheduled"] = scheduled
 
 
 def create_synthetic(settings: Settings) -> dict:

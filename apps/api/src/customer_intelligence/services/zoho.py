@@ -371,11 +371,18 @@ def build_billing(
                 day(s.get("cancelled_date") or s.get("expires_at") or s.get("updated_time"))
                 for s in ended
             )
+        live = [s for s in subs if s.get("status") not in BILLING_ENDED]
+        current = live[-1] if live else {}
         accounts.append(
             {
                 "account_id": customer_id,
                 "domain": connectors._domain(customer.get("email")),
                 "crm_id": str(customer.get("zcrm_account_id") or ""),
+                "renews_at": ""
+                if cancelled
+                else day(current.get("current_term_ends_at") or current.get("next_billing_at")),
+                # "Non-renewing" means the customer already chose to stop at the term end.
+                "cancel_scheduled": "yes" if current.get("status") == "non_renewing" else "",
                 "created_at": day(customer.get("created_time")),
                 "cancelled_at": cancelled,
                 "plan": latest.get("plan_name") or latest.get("plan_code") or "",
@@ -417,6 +424,8 @@ def build_billing(
                 "plan",
                 "seats",
                 "billing_cycle",
+                "renews_at",
+                "cancel_scheduled",
             ],
         ),
         "invoices": pd.DataFrame(rows, columns=["account_id", "date", "amount", "status"]),

@@ -366,6 +366,12 @@ def run_cycle(session: Session, settings: Settings, job_id: UUID) -> UUID:
             links.append({"label": "Approve retraining", "href": f"/app/inbox#{proposal.id}"})
         except WorkflowError as exc:
             lines.append(f"Retraining was not proposed: {exc}")
+    from customer_intelligence.services.renewals import digest_line
+
+    renewal = digest_line(session, settings, score_id, source_id)
+    if renewal:
+        lines.append(renewal)
+        links.append({"label": "Renewal radar", "href": "/app/renewals"})
     item = DigestItem(
         kind="cycle",
         severity="info" if severity == "stable" else severity,

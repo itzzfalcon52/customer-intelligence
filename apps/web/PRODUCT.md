@@ -78,7 +78,7 @@ approval.
   - synthetic or demo data is labelled as such.
 - **Available:** read-only billing connectors (Razorpay, Zoho Billing, Stripe) and CRM
   connectors (Zoho CRM, HubSpot) feeding the daily check, matched by Zoho's CRM link or domain,
-  approved plays as CRM tasks, a step-by-step connector guide, and per-person email digests after each check.
+  approved plays as CRM tasks, a step-by-step connector guide, a renewal radar, and per-person email digests after each check.
 - **Coming soon** (never present as available): live connectors (Salesforce, Intercom,
   Zendesk), Slack digests, and public hosting. Nemotron
   reading raw support-ticket text is not built.
