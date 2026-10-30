@@ -1,15 +1,19 @@
-"""Read-only Stripe and HubSpot connectors that produce account data sources.
+"""Read-only billing and CRM connectors that produce account data sources.
+
+Billing (the record of who paid and who cancelled): Stripe, Razorpay, Zoho Billing.
+CRM (companies, support tickets/cases, churn field, optional task write-back): HubSpot, Zoho CRM.
 
 Credentials are verified with one cheap read, then stored only as Fernet ciphertext keyed by
-`CI_CREDENTIALS_KEY`. They are never returned by the API, logged or written to a source. Syncs
-are bounded (MAX_PAGES per object) and only ever issue GET requests.
+`CI_CREDENTIALS_KEY` (a single key for Stripe/HubSpot, a JSON object for the others). They are
+never returned by the API, logged or written to a source. Syncs are bounded (MAX_PAGES per
+object) and only read; the one write is a CRM task for an approved play, behind its own opt-in.
 """
 
 import json
 import time
 from collections import defaultdict
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -23,7 +27,27 @@ from customer_intelligence.core.errors import WorkflowError
 from customer_intelligence.models.connection import Connection
 from customer_intelligence.services import sources
 
-PROVIDERS = ("stripe", "hubspot")
+# provider → (display name, role). Billing providers own cancellations; CRMs enrich them.
+REGISTRY: dict[str, tuple[str, str]] = {
+    "stripe": ("Stripe", "billing"),
+    "razorpay": ("Razorpay", "billing"),
+    "zoho_billing": ("Zoho Billing", "billing"),
+    "hubspot": ("HubSpot", "crm"),
+    "zoho_crm": ("Zoho CRM", "crm"),
+}
+PROVIDERS = tuple(REGISTRY)
+# Single pasted key; every other provider sends named fields.
+SINGLE_SECRET = {"stripe", "hubspot"}
+
+
+def name_of(provider: str) -> str:
+    return REGISTRY.get(provider, (provider.title(), ""))[0]
+
+
+def role_of(provider: str) -> str:
+    return REGISTRY.get(provider, ("", ""))[1]
+
+
 MAX_PAGES = 100
 # Rate limits and transient provider errors are retried a few times with a short, capped wait.
 ATTEMPTS = 3
@@ -39,6 +63,14 @@ OBJECTS = {
     "/v1/invoices": "invoices",
     "/crm/v3/objects/companies": "companies",
     "/crm/v3/objects/tickets": "tickets",
+    "/v1/plans": "plans",
+    "/crm/v8/Accounts": "accounts",
+    "/crm/v8/Cases": "cases",
+    "/crm/v8/settings/fields": "field settings",
+    "/billing/v1/customers": "customers",
+    "/billing/v1/subscriptions": "subscriptions",
+    "/billing/v1/invoices": "invoices",
+    "/billing/v1/organizations": "organizations",
 }
 
 
@@ -73,6 +105,14 @@ def _wait(response: httpx.Response | None, attempt: int) -> float:
     return min(max(wait, 0.0), MAX_WAIT_SECONDS)
 
 
+def _scope_problem(response: httpx.Response) -> bool:
+    try:
+        body = response.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and "SCOPE" in str(body.get("code", "")).upper()
+
+
 def _get(client: httpx.Client, path: str, params: dict[str, Any]) -> dict:
     response: httpx.Response | None = None
     for attempt in range(ATTEMPTS):
@@ -87,9 +127,11 @@ def _get(client: httpx.Client, path: str, params: dict[str, Any]) -> dict:
             break
         sleep(_wait(response, attempt))
     assert response is not None
-    if response.status_code == 401:
+    if response.status_code == 204:
+        return {}  # Zoho answers "no records" with an empty 204
+    if response.status_code == 401 and not _scope_problem(response):
         raise WorkflowError("The provider rejected the key. Check that it was copied whole.", 400)
-    if response.status_code == 403:
+    if response.status_code in (401, 403):
         what = OBJECTS.get(path, "this data")
         raise WorkflowError(f"This key can't read {what}. Give it read access and try again.", 400)
     if response.status_code == 429:
@@ -284,44 +326,54 @@ def _domain(value: Any) -> str:
 
 
 def merge(
-    stripe: dict[str, pd.DataFrame], hubspot: dict[str, pd.DataFrame]
+    billing: dict[str, pd.DataFrame], crm: dict[str, pd.DataFrame]
 ) -> tuple[dict[str, pd.DataFrame], dict[str, str], dict]:
-    """Stripe accounts enriched with HubSpot industry and tickets, matched by company domain.
+    """Billing accounts enriched with CRM industry and tickets.
 
-    Stripe stays the record of who cancelled. A domain shared by several HubSpot companies, and
-    personal mailboxes, are not matched. Returns the tables, the Stripe → HubSpot company links
-    and match statistics.
+    A billing record that already carries its CRM account ID (Zoho Billing ↔ Zoho CRM) links
+    directly; the rest match by company domain. Billing stays the record of who cancelled. A
+    domain shared by several CRM companies, and personal mailboxes, are not matched. Returns the
+    tables, the billing → CRM account links and match statistics.
     """
-    companies = hubspot["accounts"]
+    companies = crm["accounts"]
+    accounts = billing["accounts"].copy()
+    known = set(companies["account_id"].astype(str))
+    links: dict[str, str] = {}
+    by_id = 0
+    if "crm_id" in accounts:
+        for account, crm_id in zip(accounts["account_id"], accounts["crm_id"], strict=True):
+            if isinstance(crm_id, str) and crm_id in known:
+                links[str(account)] = crm_id
+        by_id = len(links)
     usable = companies[(companies["domain"] != "") & ~companies["domain"].isin(FREEMAIL)]
     counts = usable["domain"].value_counts()
-    unique = usable[usable["domain"].map(counts) == 1].set_index("domain")
-    accounts = stripe["accounts"].copy()
-    matched = accounts["domain"].map(unique["account_id"]) if len(unique) else None
-    links = (
-        {a: str(c) for a, c in zip(accounts["account_id"], matched, strict=True) if pd.notna(c)}
-        if matched is not None
-        else {}
-    )
+    unique = usable[usable["domain"].map(counts) == 1].set_index("domain")["account_id"]
+    for account, domain in zip(accounts["account_id"], accounts["domain"], strict=True):
+        if str(account) not in links and domain in unique.index:
+            links[str(account)] = str(unique[domain])
     industry = dict(zip(companies["account_id"], companies["industry"], strict=True))
     accounts["industry"] = [industry.get(links.get(a, ""), "") for a in accounts["account_id"]]
     reverse = {company: account for account, company in links.items()}
-    tickets = hubspot.get("tickets", pd.DataFrame(columns=["account_id", "created_at"])).copy()
+    tickets = crm.get("tickets", pd.DataFrame(columns=["account_id", "created_at"])).copy()
     tickets = tickets[tickets["account_id"].isin(reverse)]
     tickets["account_id"] = tickets["account_id"].map(reverse)
     total = int(len(accounts))
     stats = {
-        "stripe_accounts": total,
+        "billing_accounts": total,
         "matched": len(links),
+        "matched_by_crm_id": by_id,
         "rate": round(len(links) / total, 4) if total else 0.0,
         "ambiguous_domains": int((counts > 1).sum()),
     }
-    return {**stripe, "accounts": accounts, "tickets": tickets}, links, stats
+    return {**billing, "accounts": accounts, "tickets": tickets}, links, stats
 
 
 def _strip_domains(tables: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
-    """Domains are only for matching; they are identifiers, so they never reach a source file."""
-    return {name: frame.drop(columns=["domain"], errors="ignore") for name, frame in tables.items()}
+    """Domains and CRM IDs are only for matching; they are identifiers, never saved to a source."""
+    return {
+        name: frame.drop(columns=["domain", "crm_id"], errors="ignore")
+        for name, frame in tables.items()
+    }
 
 
 def _verify(client: httpx.Client, provider: str) -> None:
@@ -339,13 +391,17 @@ def _last_counts(settings: Settings | None, connection: Connection) -> dict | No
     return {**manifest.get("counts", {}), "cancelled": manifest.get("cancelled_accounts")}
 
 
-def _last_match(settings: Settings | None, connection: Connection) -> dict | None:
+def _last(settings: Settings | None, connection: Connection, key: str) -> Any:
     if settings is None or connection.last_source_id is None:
         return None
     try:
-        match = sources.read_source(settings, connection.last_source_id).get("match")
+        return sources.read_source(settings, connection.last_source_id).get(key)
     except WorkflowError:
         return None
+
+
+def _last_match(settings: Settings | None, connection: Connection) -> dict | None:
+    match = _last(settings, connection, "match")
     return match if isinstance(match, dict) else None
 
 
@@ -363,6 +419,8 @@ def public(connection: Connection, settings: Settings | None = None) -> dict:
         "write_enabled": bool(connection.write_enabled),
         "last_counts": _last_counts(settings, connection),
         "last_match": _last_match(settings, connection),
+        "last_notes": [str(n) for n in _last(settings, connection, "notes") or []],
+        "role": role_of(connection.provider),
         "churn_property": connection.churn_property,
         "enrich_connection_id": str(connection.enrich_connection_id)
         if connection.enrich_connection_id
@@ -370,14 +428,36 @@ def public(connection: Connection, settings: Settings | None = None) -> dict:
     }
 
 
-def create(session: Session, settings: Settings, provider: str, label: str, secret: str) -> dict:
+def create(
+    session: Session,
+    settings: Settings,
+    provider: str,
+    label: str,
+    secret: str | None = None,
+    fields: dict[str, str] | None = None,
+) -> dict:
+    """Verify a credential with one read, then store it encrypted. Nothing is synced yet."""
     if provider not in PROVIDERS:
         raise WorkflowError("Unsupported provider.")
     fernet = _fernet(settings)
-    with _client(settings, provider, secret) as client:
-        _verify(client, provider)
+    if provider in SINGLE_SECRET:
+        if not secret:
+            raise WorkflowError(f"Paste the {name_of(provider)} key.")
+        with _client(settings, provider, secret) as client:
+            _verify(client, provider)
+        stored = secret
+    else:
+        from customer_intelligence.services import razorpay, zoho
+
+        given = {k: v.strip() for k, v in (fields or {}).items() if v and v.strip()}
+        credential = (
+            razorpay.connect(settings, given)
+            if provider == "razorpay"
+            else zoho.connect(settings, provider, given)
+        )
+        stored = json.dumps(credential)
     connection = Connection(
-        provider=provider, label=label, secret_ciphertext=fernet.encrypt(secret.encode()).decode()
+        provider=provider, label=label, secret_ciphertext=fernet.encrypt(stored.encode()).decode()
     )
     session.add(connection)
     session.commit()
@@ -399,11 +479,36 @@ def _decrypt(settings: Settings, connection: Connection) -> str:
         raise WorkflowError("The stored credential can't be decrypted with this key.", 409) from exc
 
 
-def _fetch(settings: Settings, connection: Connection) -> dict[str, pd.DataFrame]:
-    with _client(settings, connection.provider, _decrypt(settings, connection)) as client:
-        if connection.provider == "stripe":
-            return stripe_tables(client)
-        return hubspot_tables(client, connection.churn_property)
+def credential(settings: Settings, connection: Connection) -> dict[str, str]:
+    """The stored JSON credential of a multi-field provider (Razorpay, Zoho)."""
+    try:
+        value = json.loads(_decrypt(settings, connection))
+    except ValueError as exc:
+        raise WorkflowError("The stored credential is unreadable; reconnect.", 409) from exc
+    if not isinstance(value, dict):
+        raise WorkflowError("The stored credential is unreadable; reconnect.", 409)
+    return {str(k): str(v) for k, v in value.items()}
+
+
+def _fetch(settings: Settings, connection: Connection) -> tuple[dict[str, pd.DataFrame], list[str]]:
+    """The provider's tables plus notes about anything it couldn't read."""
+    provider = connection.provider
+    if provider == "stripe":
+        with _client(settings, provider, _decrypt(settings, connection)) as client:
+            return stripe_tables(client), []
+    if provider == "hubspot":
+        with _client(settings, provider, _decrypt(settings, connection)) as client:
+            return hubspot_tables(client, connection.churn_property), []
+    from customer_intelligence.services import razorpay, zoho
+
+    stored = credential(settings, connection)
+    if provider == "razorpay":
+        return razorpay.tables(settings, stored), []
+    if provider == "zoho_crm":
+        return zoho.crm_tables(settings, stored, connection.churn_property)
+    if provider == "zoho_billing":
+        return zoho.billing_tables(settings, stored), []
+    raise WorkflowError("Unsupported provider.")
 
 
 def sync(session: Session, settings: Settings, connection_id: UUID) -> dict:
@@ -413,7 +518,7 @@ def sync(session: Session, settings: Settings, connection_id: UUID) -> dict:
     links: dict[str, str] = {}
     extra: dict[str, Any] = {"connection_id": str(connection.id)}
     try:
-        tables = _fetch(settings, connection)
+        tables, notes = _fetch(settings, connection)
         if tables["accounts"].empty:
             raise WorkflowError("The provider returned no accounts.")
         partner = (
@@ -423,14 +528,20 @@ def sync(session: Session, settings: Settings, connection_id: UUID) -> dict:
         )
         if partner is not None:
             try:
-                tables, links, extra["match"] = merge(tables, _fetch(settings, partner))
+                crm, crm_notes = _fetch(settings, partner)
             except WorkflowError as exc:
-                raise WorkflowError(f"{partner.label} (HubSpot): {exc}", exc.status_code) from exc
+                raise WorkflowError(
+                    f"{partner.label} ({name_of(partner.provider)}): {exc}", exc.status_code
+                ) from exc
+            tables, links, extra["match"] = merge(tables, crm)
+            notes += crm_notes
             extra["enriched_with"] = str(partner.id)
+        if notes:
+            extra["notes"] = notes
         manifest = sources._save(
             settings,
-            f"{connection.label} ({connection.provider.title()})",
-            "stripe+hubspot" if partner is not None else connection.provider,
+            f"{connection.label} ({name_of(connection.provider)})",
+            f"{connection.provider}+{partner.provider}" if partner else connection.provider,
             _strip_domains(tables),
             extra,
         )
@@ -451,46 +562,52 @@ def sync(session: Session, settings: Settings, connection_id: UUID) -> dict:
 
 
 def date_properties(session: Session, settings: Settings, connection_id: UUID) -> list[dict]:
-    """HubSpot company properties that hold a date, for choosing which one records churn."""
+    """CRM account/company date fields, for choosing which one records churn."""
     connection = session.get(Connection, connection_id)
     if connection is None:
         raise WorkflowError("Connection not found.", 404)
-    if connection.provider != "hubspot":
-        raise WorkflowError("Only HubSpot connections have company properties.")
-    with _client(settings, "hubspot", _decrypt(settings, connection)) as client:
-        body = _get(client, "/crm/v3/properties/companies", {})
-    found = [
-        {"name": str(p["name"]), "label": str(p.get("label") or p["name"])}
-        for p in body.get("results") or []
-        if isinstance(p, dict) and p.get("name") and p.get("type") in ("date", "datetime")
-    ]
+    if role_of(connection.provider) != "crm":
+        raise WorkflowError("Only CRM connections have a churn field.")
+    if connection.provider == "zoho_crm":
+        from customer_intelligence.services import zoho
+
+        found = zoho.date_fields(settings, credential(settings, connection))
+    else:
+        with _client(settings, "hubspot", _decrypt(settings, connection)) as client:
+            body = _get(client, "/crm/v3/properties/companies", {})
+        found = [
+            {"name": str(p["name"]), "label": str(p.get("label") or p["name"])}
+            for p in body.get("results") or []
+            if isinstance(p, dict) and p.get("name") and p.get("type") in ("date", "datetime")
+        ]
     return sorted(found, key=lambda p: p["label"].lower())
 
 
 def configure(
     session: Session, settings: Settings, connection_id: UUID, changes: dict[str, Any]
 ) -> dict:
-    """Set the HubSpot churn property or the Stripe → HubSpot enrichment (only the given keys)."""
+    """Set a CRM's churn field or a billing → CRM link (only the given keys)."""
     connection = session.get(Connection, connection_id)
     if connection is None:
         raise WorkflowError("Connection not found.", 404)
+    role = role_of(connection.provider)
     if "churn_property" in changes:
-        name = changes["churn_property"]
-        if connection.provider != "hubspot":
-            raise WorkflowError("Only HubSpot connections have a churn property.")
-        if name is not None and name not in {
+        field = changes["churn_property"]
+        if role != "crm":
+            raise WorkflowError("Only CRM connections have a churn field.")
+        if field is not None and field not in {
             p["name"] for p in date_properties(session, settings, connection_id)
         }:
-            raise WorkflowError("Choose one of this HubSpot account's company date properties.")
-        connection.churn_property = name
+            raise WorkflowError("Choose one of this CRM's date fields.")
+        connection.churn_property = field
     if "enrich_connection_id" in changes:
         target = changes["enrich_connection_id"]
-        if connection.provider != "stripe":
-            raise WorkflowError("Only a Stripe connection can be matched with HubSpot.")
+        if role != "billing":
+            raise WorkflowError("Only a billing connection can be matched with a CRM.")
         if target is not None:
             partner = session.get(Connection, target)
-            if partner is None or partner.provider != "hubspot":
-                raise WorkflowError("Choose a HubSpot connection to match with.", 404)
+            if partner is None or role_of(partner.provider) != "crm":
+                raise WorkflowError("Choose a CRM connection to match with.", 404)
         connection.enrich_connection_id = target
     session.add(connection)
     session.commit()
@@ -498,16 +615,16 @@ def configure(
     return public(connection, settings)
 
 
-def company_links(session: Session, settings: Settings, hubspot_id: UUID) -> dict[str, str]:
-    """Stripe account → HubSpot company, from each linked Stripe connection's latest sync."""
+def company_links(session: Session, settings: Settings, crm_id: UUID) -> dict[str, str]:
+    """Billing account → CRM account, from each linked billing connection's latest sync."""
     links: dict[str, str] = {}
     partners = session.exec(
-        select(Connection).where(Connection.enrich_connection_id == hubspot_id)
+        select(Connection).where(Connection.enrich_connection_id == crm_id)
     ).all()
-    for stripe in partners:
-        if stripe.last_source_id is None:
+    for billing in partners:
+        if billing.last_source_id is None:
             continue
-        path = sources._directory(settings, stripe.last_source_id) / "links.json"
+        path = sources._directory(settings, billing.last_source_id) / "links.json"
         if path.exists():
             loaded = json.loads(path.read_text())
             if isinstance(loaded, dict):
@@ -519,13 +636,109 @@ def set_write(session: Session, connection_id: UUID, enabled: bool) -> dict:
     connection = session.get(Connection, connection_id)
     if connection is None:
         raise WorkflowError("Connection not found.", 404)
-    if enabled and connection.provider != "hubspot":
-        raise WorkflowError("Only HubSpot connections can create tasks.")
+    if enabled and role_of(connection.provider) != "crm":
+        raise WorkflowError("Only CRM connections can create tasks.")
     connection.write_enabled = enabled
     session.add(connection)
     session.commit()
     session.refresh(connection)
     return public(connection)
+
+
+def create_tasks(
+    session: Session,
+    settings: Settings,
+    connection: Connection,
+    accounts: list[str],
+    title: str,
+    instructions: str,
+) -> dict:
+    """One task per CRM account for an approved play. Billing-anchored accounts reach their CRM
+    account through the latest match; anything that isn't a CRM account ID is skipped."""
+    links = company_links(session, settings, connection.id)
+    known = _crm_accounts(settings, connection)
+    targets: list[str] = []
+    skipped = 0
+    for customer_id in accounts:
+        account = customer_id.rpartition("@")[0] or customer_id
+        # Only real CRM records: a matched billing account, or an ID from the CRM's own sync.
+        # (Billing IDs can be numeric too, so "looks like an ID" is never enough.)
+        target = links.get(account) or (account if account in known else None)
+        if target:
+            targets.append(target)
+        else:
+            skipped += 1  # stays in the CSV export
+    if connection.provider == "zoho_crm":
+        from customer_intelligence.services import zoho
+
+        written, failed = zoho.create_tasks(
+            settings, credential(settings, connection), targets, title, instructions
+        )
+    else:
+        written, failed = _hubspot_tasks(
+            settings, _decrypt(settings, connection), targets, title, instructions
+        )
+    return {
+        "destination": connection.provider,
+        "written": written,
+        "skipped": skipped,
+        "failed": failed,
+    }
+
+
+def _crm_accounts(settings: Settings, connection: Connection) -> set[str]:
+    """Account IDs from the CRM connection's latest sync (empty before its first sync)."""
+    if connection.last_source_id is None:
+        return set()
+    try:
+        frame = sources.load_tables(settings, connection.last_source_id)["accounts"]
+    except (WorkflowError, KeyError):
+        return set()
+    return set(frame["account_id"].astype(str))
+
+
+def _hubspot_tasks(
+    settings: Settings, secret: str, companies: list[str], title: str, instructions: str
+) -> tuple[int, int]:
+    due = int((datetime.now(UTC) + timedelta(days=2)).timestamp() * 1000)
+    written = failed = 0
+    with _client(settings, "hubspot", secret) as client:
+        for company in companies:
+            try:
+                response = client.post(
+                    "/crm/v3/objects/tasks",
+                    json={
+                        "properties": {
+                            "hs_task_subject": title[:200],
+                            "hs_task_body": instructions[:4000],
+                            "hs_task_status": "NOT_STARTED",
+                            "hs_timestamp": due,
+                        },
+                        "associations": [
+                            {
+                                "to": {"id": company},
+                                "types": [
+                                    {
+                                        "associationCategory": "HUBSPOT_DEFINED",
+                                        "associationTypeId": 192,
+                                    }
+                                ],
+                            }
+                        ],
+                    },
+                )
+            except httpx.HTTPError:
+                failed += 1
+                continue
+            if response.status_code in (401, 403):
+                raise WorkflowError(
+                    "HubSpot refused task creation; check the credential's write scope.", 400
+                )
+            if response.status_code >= 300:
+                failed += 1
+            else:
+                written += 1
+    return written, failed
 
 
 def secret_for(session: Session, settings: Settings, connection: Connection) -> str:

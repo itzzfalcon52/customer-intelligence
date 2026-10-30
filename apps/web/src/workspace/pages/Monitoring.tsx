@@ -16,6 +16,7 @@ import { post, request } from '../api';
 import { date, metric, model, number } from '../format';
 import { useAction, useIdentity, useResource, useRuns } from '../queries';
 import type { Job, RunSummary } from '../types';
+import { PROVIDERS, type Provider } from '../connectors-data';
 import { Bars } from '../charts';
 import {
   Alert,
@@ -366,17 +367,15 @@ function ScheduleCard({ hasModel }: { hasModel: boolean }) {
               <optgroup label="Live connections (fresh data every check)">
                 {connections.data?.connections.map((c) => (
                   <option key={c.id} value={`c:${c.id}`}>
-                    {c.label} ({c.provider === 'stripe' ? 'Stripe' : 'HubSpot'})
+                    {c.label} (
+                    {PROVIDERS[c.provider as Provider]?.name ?? c.provider})
                   </option>
                 ))}
               </optgroup>
             )}
             <optgroup label="Saved sources (the same data each time)">
               {sources.data
-                ?.filter(
-                  (s) =>
-                    !['stripe', 'hubspot', 'stripe+hubspot'].includes(s.kind),
-                )
+                ?.filter((s) => ['synthetic', 'csv_bundle'].includes(s.kind))
                 .map((s) => (
                   <option key={s.id} value={`s:${s.id}`}>
                     {s.name}
@@ -465,7 +464,8 @@ function ScheduleCard({ hasModel }: { hasModel: boolean }) {
         form.source_id && (
           <p className="mt-4 text-[13px] text-slate-600">
             A saved source never changes, so every check scores the same
-            accounts. Connect Stripe on the Data sources page for daily data.
+            accounts. Connect Razorpay, Zoho or Stripe on the Data sources page
+            for daily data.
           </p>
         )
       )}

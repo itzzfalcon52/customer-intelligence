@@ -181,7 +181,7 @@ def test_stripe_matched_with_hubspot_adds_tickets_and_writes_back(backend, provi
     assert source["kind"] == "stripe+hubspot" and source["counts"]["tickets"] > 0
     match = source["match"]
     # 400 accounts: 40 pay from personal mailboxes and one domain is claimed twice.
-    assert match["stripe_accounts"] == 400 and match["ambiguous_domains"] == 1
+    assert match["billing_accounts"] == 400 and match["ambiguous_domains"] == 1
     assert match["matched"] == 400 - 40 - 1
     listed = client.get("/api/v1/connections").json()["connections"]
     assert next(c for c in listed if c["id"] == stripe_id)["last_match"]["matched"] == 359

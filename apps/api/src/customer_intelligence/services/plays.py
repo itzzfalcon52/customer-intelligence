@@ -1,16 +1,14 @@
 """Retention plays: a person queues a play for a batch's contact list and approves it.
 
-Approval either creates HubSpot tasks for the account owners (only through a HubSpot
+Approval either creates CRM tasks for the account owners (HubSpot or Zoho CRM, only through a
 connection the user explicitly opened for writing) or leaves a CSV ready to export. Nothing is
 sent to end customers, and holdout accounts are never included.
 """
 
 import csv
-from datetime import UTC, datetime, timedelta
 from io import StringIO
 from uuid import UUID
 
-import httpx
 from sqlmodel import Session
 
 from customer_intelligence.core.config import Settings
@@ -43,17 +41,18 @@ def propose(
 ) -> PendingAction:
     from customer_intelligence.services.autonomy import check_action_quota
 
+    destination = "a CSV export"
     if connection_id:
         connection = session.get(Connection, connection_id)
-        if connection is None or connection.provider != "hubspot":
-            raise WorkflowError("Choose a HubSpot connection for task write-back.", 404)
+        if connection is None or connectors.role_of(connection.provider) != "crm":
+            raise WorkflowError("Choose a CRM connection for task write-back.", 404)
         if not connection.write_enabled:
-            raise WorkflowError("Allow this HubSpot connection to create tasks first.", 409)
+            raise WorkflowError("Allow this CRM connection to create tasks first.", 409)
+        destination = f"{connectors.name_of(connection.provider)} tasks"
     ids = contact_list(settings, score_id, min(accounts, MAX_ACCOUNTS))
     if not ids:
         raise WorkflowError("This batch has no accounts on its contact list.")
     check_action_quota(session)
-    destination = "HubSpot tasks" if connection_id else "a CSV export"
     action = PendingAction(
         kind="play",
         summary=f"{title}: {len(ids)} accounts from the contact list, as {destination}. "
@@ -80,54 +79,15 @@ def execute(session: Session, settings: Settings, action: PendingAction) -> dict
         return {"destination": "csv", "accounts": len(payload["accounts"])}
     connection = session.get(Connection, UUID(payload["connection_id"]))
     if connection is None or not connection.write_enabled:
-        raise WorkflowError("The HubSpot connection no longer allows task creation.", 409)
-    secret = connectors.secret_for(session, settings, connection)
-    due = int((datetime.now(UTC) + timedelta(days=2)).timestamp() * 1000)
-    written, skipped, failed = 0, 0, 0
-    # Stripe-anchored accounts reach their HubSpot company through the domain match.
-    links = connectors.company_links(session, settings, connection.id)
-    with connectors._client(settings, "hubspot", secret) as client:
-        for customer_id in payload["accounts"]:
-            company = customer_id.rpartition("@")[0] or customer_id
-            company = links.get(company, company)
-            if not company.isdigit():
-                skipped += 1  # not a HubSpot company ID; stays in the CSV export
-                continue
-            try:
-                response = client.post(
-                    "/crm/v3/objects/tasks",
-                    json={
-                        "properties": {
-                            "hs_task_subject": payload["title"][:200],
-                            "hs_task_body": payload["instructions"][:4000],
-                            "hs_task_status": "NOT_STARTED",
-                            "hs_timestamp": due,
-                        },
-                        "associations": [
-                            {
-                                "to": {"id": company},
-                                "types": [
-                                    {
-                                        "associationCategory": "HUBSPOT_DEFINED",
-                                        "associationTypeId": 192,
-                                    }
-                                ],
-                            }
-                        ],
-                    },
-                )
-            except httpx.HTTPError:
-                failed += 1
-                continue
-            if response.status_code in (401, 403):
-                raise WorkflowError(
-                    "HubSpot refused task creation; check the credential's write scope.", 400
-                )
-            if response.status_code >= 300:
-                failed += 1
-            else:
-                written += 1
-    return {"destination": "hubspot", "written": written, "skipped": skipped, "failed": failed}
+        raise WorkflowError("The CRM connection no longer allows task creation.", 409)
+    return connectors.create_tasks(
+        session,
+        settings,
+        connection,
+        list(payload["accounts"]),
+        payload["title"],
+        payload["instructions"],
+    )
 
 
 def export(action: PendingAction) -> str:

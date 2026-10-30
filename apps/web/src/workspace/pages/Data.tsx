@@ -117,9 +117,16 @@ export function Datasets() {
         title="Upload customer history"
         description="Start with an export of past customers that includes whether each one churned. We check the file’s quality before anything is trained."
         actions={
-          <ButtonLink to="/app/sources" icon={Plug}>
-            Multi-table CSV bundle
-          </ButtonLink>
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink
+              to="/app/sources#connectors"
+              variant="primary"
+              icon={Plug}
+            >
+              Connect billing or CRM
+            </ButtonLink>
+            <ButtonLink to="/app/sources">Multi-table CSV bundle</ButtonLink>
+          </div>
         }
       />
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">

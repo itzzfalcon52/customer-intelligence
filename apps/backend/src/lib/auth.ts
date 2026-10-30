@@ -1,7 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { organization } from 'better-auth/plugins';
-import type { Configuration } from '../config.js';
+import { allowedOrigins, type Configuration } from '../config.js';
 import type { Database } from './prisma.js';
 
 export function createAuth(database: Database, config: Configuration) {
@@ -10,7 +10,7 @@ export function createAuth(database: Database, config: Configuration) {
     secret: config.BETTER_AUTH_SECRET,
     baseURL: config.APP_ORIGIN,
     basePath: '/api/auth',
-    trustedOrigins: [config.APP_ORIGIN],
+    trustedOrigins: allowedOrigins(config),
     database: prismaAdapter(database, {
       provider: 'postgresql',
       transaction: true,

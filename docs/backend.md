@@ -436,6 +436,45 @@ connectivity but do not replace testing the new conversation workflow.
   disk, ticket features in training, task write-back through the links, unlinking). No live
   HubSpot account was used.
 
+### Indian billing and CRM: Razorpay, Zoho Billing, Zoho CRM (October 30)
+
+Stripe only takes new Indian businesses by invitation (since May 2024), so Indian clients connect
+Razorpay or Zoho Billing for billing and Zoho CRM as the CRM.
+
+- **Roles.** `connectors.REGISTRY` names each provider's role: billing (stripe, razorpay,
+  zoho_billing) owns cancellations; CRM (hubspot, zoho_crm) adds industry and tickets, a churn
+  field and task write-back. Any billing connection can match with any CRM; the source kind is
+  `<billing>+<crm>`. Match stats are `billing_accounts`, `matched`, `matched_by_crm_id`, `rate`.
+- **Credentials.** `POST /connections` takes `secret` (Stripe, HubSpot) or `fields` (Razorpay:
+  `key_id`, `key_secret`; Zoho: `region`, `client_id`, `client_secret`, `code`, optional
+  `organization_id`). Multi-field credentials are stored as encrypted JSON.
+- **Razorpay** (`services/razorpay.py`): HTTP basic auth; customers, subscriptions, plans and
+  invoices paged by `count`/`skip`; amounts in paise ÷ 100. Cancelled when every subscription is
+  cancelled/completed/expired; expired or overdue invoices and halted subscriptions are failed
+  payments; yearly plans are annual. Razorpay keys can't be read-only.
+- **Zoho** (`services/zoho.py`): Self Client. The one-time code is exchanged once for a refresh
+  token (never stored as a code); each sync refreshes a one-hour access token in memory. Region
+  picks the accounts server (in, com, eu, au, jp, ca, sa); the token's `api_domain` must be a
+  zohoapis host. Zoho reports bad codes as HTTP 200 with `error`, mapped to plain messages.
+  - **Zoho CRM:** `/crm/v8/Accounts` (200 per page, `page_token` past 2,000), Cases as tickets
+    (if unreadable the sync continues with a note), date fields from
+    `/crm/v8/settings/fields?module=Accounts`, and Tasks (`What_Id`, `$se_module: Accounts`,
+    batches of 100) for approved plays.
+  - **Zoho Billing:** `/billing/v1/{customers,subscriptions,invoices}` with the
+    `X-com-zoho-subscriptions-organizationid` header; with several organisations the admin
+    enters one ID. Customers carrying `zcrm_account_id` match the CRM by that ID before domain;
+    it is never saved to source files.
+- **Task targets are only real CRM records:** a matched billing account, or an ID from the CRM's
+  own latest sync. A numeric billing ID is never assumed to be a CRM ID.
+- A Zoho 204 is an empty page; a 401 with a SCOPE code reads as a missing permission.
+- Tests: `tests/test_razorpay_loop.py` (fake paged Razorpay from the synthetic generator, full
+  daily loop, status mapping) and `tests/test_zoho_loop.py` (fake Zoho accounts/CRM/Billing:
+  code exchange, secrets never stored or returned, paging past 2,000 accounts, Cases fallback,
+  organisation choice, CRM-ID-first matching, tasks). Field names and statuses follow the
+  providers' documentation; no live Razorpay or Zoho account was used yet.
+- In development the account backend accepts both `http://localhost:5173` and
+  `http://127.0.0.1:5173` (`allowedOrigins`); production accepts exactly `APP_ORIGIN`.
+
 ### Email digest (October 30)
 
 - Set `CI_RESEND_API_KEY` and `CI_EMAIL_FROM` (an address on a domain verified in Resend) in

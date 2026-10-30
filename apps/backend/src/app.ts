@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import { toNodeHandler } from 'better-auth/node';
 import type { Auth } from './lib/auth.js';
 import type { Database } from './lib/prisma.js';
-import type { Configuration } from './config.js';
+import { allowedOrigins, type Configuration } from './config.js';
 import { requireSession } from './middleware/session.js';
 
 export function createApp(
@@ -14,6 +14,7 @@ export function createApp(
   config: Configuration,
 ) {
   const app = express();
+  const origins = allowedOrigins(config);
   app.disable('x-powered-by');
   app.use(helmet());
   app.use((request, response, next) => {
@@ -33,7 +34,7 @@ export function createApp(
     if (
       !['GET', 'HEAD', 'OPTIONS'].includes(request.method) &&
       request.headers.origin &&
-      request.headers.origin !== config.APP_ORIGIN
+      !origins.includes(request.headers.origin)
     ) {
       response.status(403).json({ message: 'Request origin is not allowed.' });
       return;

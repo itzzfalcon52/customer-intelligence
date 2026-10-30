@@ -76,8 +76,9 @@ approval.
   - outreach is draft-only;
   - uncalibrated outputs are risk scores, not probabilities;
   - synthetic or demo data is labelled as such.
-- **Available:** read-only Stripe and HubSpot connectors feeding the daily check, matched by
-  domain, approved plays as HubSpot tasks, and per-person email digests after each check.
+- **Available:** read-only billing connectors (Razorpay, Zoho Billing, Stripe) and CRM
+  connectors (Zoho CRM, HubSpot) feeding the daily check, matched by Zoho's CRM link or domain,
+  approved plays as CRM tasks, a step-by-step connector guide, and per-person email digests after each check.
 - **Coming soon** (never present as available): live connectors (Salesforce, Intercom,
   Zendesk), Slack digests, and public hosting. Nemotron
   reading raw support-ticket text is not built.

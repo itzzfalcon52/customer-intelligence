@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     credentials_key: SecretStr | None = None
     stripe_api_base: str = "https://api.stripe.com"
     hubspot_api_base: str = "https://api.hubapi.com"
+    razorpay_api_base: str = "https://api.razorpay.com"
+    # Zoho: normally derived from the connection's region and the token's api_domain; set these
+    # only to point every Zoho call at one host (tests, local fakes).
+    zoho_accounts_base: str | None = None
+    zoho_api_base: str | None = None
 
     # Email digests through Resend. Both are needed; without them email stays off.
     # The sender must be on a domain verified in Resend, e.g. "Holdfast <brief@yourdomain.com>".

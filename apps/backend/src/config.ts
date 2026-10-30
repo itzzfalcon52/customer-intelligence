@@ -48,3 +48,22 @@ export function readConfig(environment: NodeJS.ProcessEnv = process.env) {
   return parsed.data;
 }
 export type Configuration = ReturnType<typeof readConfig>;
+
+/**
+ * Browser origins allowed to call the account API. Production accepts exactly APP_ORIGIN.
+ * In development the loopback twin is accepted too, so http://localhost:5173 and
+ * http://127.0.0.1:5173 both work; nothing else does.
+ */
+export function allowedOrigins(config: Configuration): string[] {
+  const origins = [config.APP_ORIGIN];
+  if (config.NODE_ENV === 'production') return origins;
+  const url = new URL(config.APP_ORIGIN);
+  const twin = { localhost: '127.0.0.1', '127.0.0.1': 'localhost' }[
+    url.hostname
+  ];
+  if (twin) {
+    url.hostname = twin;
+    origins.push(url.origin);
+  }
+  return origins;
+}

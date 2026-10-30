@@ -10,8 +10,8 @@ const INCLUDED = [
   'Uploads up to 200 MB and 1 million rows',
   'Model comparison with a baseline and a reserved final test',
   'Daily scheduled checks, drift and measured accuracy',
-  'Stripe and HubSpot connectors, synced daily and matched by domain',
-  'Approved plays as HubSpot tasks',
+  'Razorpay, Zoho Billing, Zoho CRM, Stripe and HubSpot connectors, synced daily',
+  'Approved plays as Zoho CRM or HubSpot tasks',
   'An email digest after every daily check',
   'Nemotron briefs, account notes and Ask AI, all checked',
   'Holdout groups and measured outreach lift',
@@ -23,7 +23,7 @@ const INCLUDED = [
 const SOON: [string, string][] = [
   [
     'More connectors',
-    'Salesforce, Intercom and Zendesk, synced daily. Stripe and HubSpot work today.',
+    'Salesforce, Freshdesk, Chargebee, Intercom and Zendesk. Razorpay, Zoho, Stripe and HubSpot work today.',
   ],
   [
     'Slack digests',

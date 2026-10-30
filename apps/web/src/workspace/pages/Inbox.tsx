@@ -24,6 +24,7 @@ import {
   Notice,
   PageHeader,
 } from '../ui';
+import { PROVIDERS } from '../connectors-data';
 
 const KIND: Record<string, string> = {
   train: 'Train a model',
@@ -33,7 +34,7 @@ const KIND: Record<string, string> = {
 type PlayResult =
   | { destination: 'csv'; accounts: number }
   | {
-      destination: 'hubspot';
+      destination: 'hubspot' | 'zoho_crm';
       written: number;
       skipped: number;
       failed: number;
@@ -285,9 +286,12 @@ function PlayOutcome({ id, result }: { id: string; result?: PlayResult }) {
   const [error, setError] = useState('');
   return (
     <span className="flex items-center gap-2 text-xs text-slate-500">
-      {result?.destination === 'hubspot' &&
-        `${result.written} HubSpot tasks created` +
-          (result.skipped ? `, ${result.skipped} not HubSpot companies` : '') +
+      {result &&
+        result.destination !== 'csv' &&
+        `${result.written} ${PROVIDERS[result.destination].name} tasks created` +
+          (result.skipped
+            ? `, ${result.skipped} not matched to a CRM account`
+            : '') +
           (result.failed ? `, ${result.failed} failed` : '')}
       <Button
         size="sm"

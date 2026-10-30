@@ -49,6 +49,7 @@ import {
 } from '../ui';
 import { cn } from '../style';
 import { StagePill, WorkflowSteps } from '../workflow-ui';
+import { PROVIDERS, type Provider } from '../connectors-data';
 
 interface Draft {
   row_reference: number;
@@ -808,14 +809,15 @@ function AssignPlay({
   const connections = useResource<{
     connections: {
       id: string;
-      provider: string;
+      provider: Provider;
+      role: string;
       label: string;
       write_enabled: boolean;
     }[];
   }>('/api/v1/connections');
   const writable =
     connections.data?.connections.filter(
-      (c) => c.provider === 'hubspot' && c.write_enabled,
+      (c) => c.role === 'crm' && c.write_enabled,
     ) ?? [];
   const playbooks = useResource<{ id: string }[]>('/api/v1/playbooks');
   const hits = useResource<{ results: Hit[] }>(
@@ -889,8 +891,8 @@ function AssignPlay({
               label="Deliver as"
               hint={
                 writable.length
-                  ? 'HubSpot tasks go to the matching companies’ owners after approval. Nothing is sent to customers.'
-                  : 'To create HubSpot tasks, an admin turns on task creation for a HubSpot connection on Data sources.'
+                  ? 'CRM tasks go to the matching accounts’ owners after approval. Nothing is sent to customers.'
+                  : 'To create Zoho CRM or HubSpot tasks, an admin turns on task creation for that connection on Data sources.'
               }
             >
               <Select
@@ -900,7 +902,7 @@ function AssignPlay({
                 <option value="">CSV export after approval</option>
                 {writable.map((c) => (
                   <option key={c.id} value={c.id}>
-                    HubSpot tasks · {c.label}
+                    {PROVIDERS[c.provider].name} tasks · {c.label}
                   </option>
                 ))}
               </Select>

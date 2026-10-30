@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
@@ -15,8 +15,8 @@ import {
   Upload,
 } from 'lucide-react';
 import { post, request } from '../api';
-import { date, number, percent } from '../format';
-import { useAction, useIdentity, useResource } from '../queries';
+import { number, percent } from '../format';
+import { useAction, useResource } from '../queries';
 import type { Task } from '../types';
 import { Curve } from '../charts';
 import {
@@ -34,15 +34,15 @@ import {
   Reveal,
   Select,
   Stat,
-  Checkbox,
 } from '../ui';
 import { useDemoPipeline, useUploadDemo } from '../workflow';
 import { HowItWorks } from '../workflow-ui';
+import { Connectors } from '../connectors-ui';
 
 interface Source {
   id: string;
   name: string;
-  kind: 'synthetic' | 'csv_bundle' | 'stripe' | 'hubspot' | 'stripe+hubspot';
+  kind: string;
   created_at: string;
   counts: Record<'accounts' | 'invoices' | 'usage' | 'tickets', number>;
   first_date: string;
@@ -73,13 +73,21 @@ interface Timeline {
   invoices: { date: string; amount: number; status: string }[];
   tickets: { date: string; subject: string; topics: string[] }[];
 }
-const KIND: Record<Source['kind'], [string, 'violet' | 'info' | 'success']> = {
+const KIND: Record<string, [string, 'violet' | 'info' | 'success']> = {
   synthetic: ['Synthetic demo', 'violet'],
   csv_bundle: ['CSV bundle', 'info'],
   stripe: ['Stripe', 'success'],
+  razorpay: ['Razorpay', 'success'],
+  zoho_billing: ['Zoho Billing', 'success'],
   hubspot: ['HubSpot', 'success'],
-  'stripe+hubspot': ['Stripe + HubSpot', 'success'],
+  zoho_crm: ['Zoho CRM', 'success'],
 };
+/** A badge for a source kind; a matched pair such as "razorpay+zoho_crm" names both. */
+function kindOf(kind: string): [string, 'violet' | 'info' | 'success'] {
+  if (KIND[kind]) return KIND[kind];
+  const parts = kind.split('+').map((k) => KIND[k]?.[0] ?? k);
+  return [parts.join(' + '), 'success'];
+}
 
 export function Sources() {
   const navigate = useNavigate();
@@ -144,7 +152,9 @@ export function Sources() {
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2 text-sm font-medium text-slate-900">
                         {s.name}{' '}
-                        <Badge tone={KIND[s.kind][1]}>{KIND[s.kind][0]}</Badge>
+                        <Badge tone={kindOf(s.kind)[1]}>
+                          {kindOf(s.kind)[0]}
+                        </Badge>
                       </span>
                       <span className="block text-xs text-slate-500">
                         {number(s.counts.accounts)} accounts · {s.first_date} →{' '}
@@ -276,7 +286,7 @@ export function Sources() {
               </div>
             </Card>
           </div>
-          <div>
+          <div id="connectors" className="scroll-mt-20">
             <h2 className="mb-3 text-[15px] font-semibold text-slate-900">
               Connectors
             </h2>
@@ -342,7 +352,7 @@ export function SourceDetail() {
     <>
       <PageHeader
         back={{ to: '/app/sources', label: 'Data sources' }}
-        eyebrow={<Badge tone={KIND[s.kind][1]}>{KIND[s.kind][0]}</Badge>}
+        eyebrow={<Badge tone={kindOf(s.kind)[1]}>{kindOf(s.kind)[0]}</Badge>}
         title={s.name}
         description={`Account history from ${s.first_date} to ${s.last_date}.${s.note ? ` ${s.note}` : ''}`}
       />
@@ -601,424 +611,6 @@ function AccountTimeline({ t }: { t: Timeline }) {
           </p>
         )}
       </div>
-    </div>
-  );
-}
-
-const COMING = [
-  ['Salesforce', 'Accounts, opportunities and cases.'],
-  ['Intercom and Zendesk', 'Support conversations and their topics.'],
-] as const;
-
-type Provider = 'stripe' | 'hubspot';
-
-interface Connection {
-  id: string;
-  provider: Provider;
-  label: string;
-  last_synced_at: string | null;
-  last_source_id: string | null;
-  last_error: string | null;
-  write_enabled: boolean;
-  churn_property: string | null;
-  enrich_connection_id: string | null;
-  last_counts: {
-    accounts?: number;
-    invoices?: number;
-    tickets?: number;
-    cancelled?: number | null;
-  } | null;
-  last_match: { stripe_accounts: number; matched: number; rate: number } | null;
-}
-
-const PROVIDER: Record<
-  Provider,
-  {
-    name: string;
-    label: string;
-    about: string;
-    keyName: string;
-    placeholder: string;
-    howTo: string;
-  }
-> = {
-  stripe: {
-    name: 'Stripe',
-    label: 'Stripe billing',
-    about:
-      'Customers, subscriptions and invoices, read every day. Stripe gives billing signals (plan, seats, revenue, failed payments, cancellations).',
-    keyName: 'Restricted key',
-    placeholder: 'rk_live_… or rk_test_…',
-    howTo:
-      'Create it in Stripe under Developers → API keys → Create restricted key, with Read on Customers, Subscriptions and Invoices.',
-  },
-  hubspot: {
-    name: 'HubSpot',
-    label: 'HubSpot CRM',
-    about:
-      'Companies and support tickets, read every day; optionally, approved plays become tasks for the account owner.',
-    keyName: 'Private app access token',
-    placeholder: 'pat-…',
-    howTo:
-      'Create it in HubSpot under Development → Legacy apps → Create legacy app → Private (super admins only), with the scopes crm.objects.companies.read, crm.schemas.companies.read and tickets. Task write-back also needs a task write scope.',
-  },
-};
-
-/** Stripe and HubSpot are live; the others are still coming. CSV bundles work for anything. */
-function Connectors() {
-  const list = useResource<{ enabled: boolean; connections: Connection[] }>(
-    '/api/v1/connections',
-  );
-  const canManage = useIdentity().data?.can_manage ?? false;
-  const all = list.data?.connections ?? [];
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {list.isLoading ? (
-        <div className="sm:col-span-2">
-          <Loading label="Loading connections" />
-        </div>
-      ) : (
-        (['stripe', 'hubspot'] as const).map((provider) => {
-          const mine = all.filter((c) => c.provider === provider);
-          return (
-            <div key={provider} className="space-y-3 sm:col-span-2">
-              {!list.data?.enabled ? (
-                <ConnectorShell
-                  name={PROVIDER[provider].name}
-                  badge={<Badge>Needs setup</Badge>}
-                >
-                  {canManage
-                    ? 'Connectors are switched off on this server. Run pnpm setup:connectors, then restart the API.'
-                    : 'Ask a workspace admin to finish connector setup.'}
-                </ConnectorShell>
-              ) : mine.length ? (
-                mine.map((c) => (
-                  <ConnectionCard
-                    key={c.id}
-                    c={c}
-                    all={all}
-                    canManage={canManage}
-                  />
-                ))
-              ) : (
-                <ConnectForm provider={provider} canManage={canManage} />
-              )}
-            </div>
-          );
-        })
-      )}
-      {COMING.map(([name, description]) => (
-        <ConnectorShell
-          key={name}
-          name={name}
-          badge={<Badge tone="info">Coming soon</Badge>}
-        >
-          {description}
-        </ConnectorShell>
-      ))}
-      <p className="text-xs text-slate-500 sm:col-span-2">
-        For anything not connected yet, export the tables as CSV and upload them
-        as a bundle above.
-      </p>
-    </div>
-  );
-}
-
-function ConnectorShell({
-  name,
-  badge,
-  children,
-}: {
-  name: string;
-  badge: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-card ring-1 ring-slate-200/80">
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-500">
-        {name[0]}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
-          {name}
-          {badge}
-        </p>
-        <div className="mt-0.5 text-xs text-slate-500">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function ConnectForm({
-  provider,
-  canManage,
-}: {
-  provider: Provider;
-  canManage: boolean;
-}) {
-  const info = PROVIDER[provider];
-  const [label, setLabel] = useState(info.label);
-  const [secret, setSecret] = useState('');
-  const connect = useAction<Connection, undefined>(() =>
-    post('/api/v1/connections', { provider, label, secret }),
-  );
-  return (
-    <ConnectorShell
-      name={info.name}
-      badge={<Badge tone="success">Available</Badge>}
-    >
-      <p>{info.about}</p>
-      {canManage ? (
-        <form
-          className="mt-3 grid gap-3 sm:grid-cols-[1fr_1.4fr_auto] sm:items-end"
-          onSubmit={(e) => {
-            e.preventDefault();
-            connect.mutate(undefined, { onSuccess: () => setSecret('') });
-          }}
-        >
-          <Field label="Name">
-            <Input
-              value={label}
-              maxLength={80}
-              onChange={(e) => setLabel(e.target.value)}
-            />
-          </Field>
-          <Field label={info.keyName}>
-            <Input
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              placeholder={info.placeholder}
-              value={secret}
-              onChange={(e) => setSecret(e.target.value.trim())}
-            />
-          </Field>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={!label.trim() || secret.length < 8}
-            loading={connect.isPending}
-          >
-            Connect
-          </Button>
-          <div className="sm:col-span-3">
-            <Notice error={connect.error} />
-            <p className="mt-1">
-              {info.howTo} The key is checked with one read, then stored
-              encrypted. It is never shown again.
-            </p>
-          </div>
-        </form>
-      ) : (
-        <p className="mt-2">A workspace admin can connect {info.name}.</p>
-      )}
-    </ConnectorShell>
-  );
-}
-
-function ConnectionCard({
-  c,
-  all,
-  canManage,
-}: {
-  c: Connection;
-  all: Connection[];
-  canManage: boolean;
-}) {
-  const info = PROVIDER[c.provider];
-  const sync = useAction<Source, undefined>(() =>
-    post(`/api/v1/connections/${c.id}/sync`, {}),
-  );
-  const remove = useAction<unknown, undefined>(() =>
-    request(`/api/v1/connections/${c.id}`, { method: 'DELETE' }),
-  );
-  const counts = c.last_counts;
-  const summary =
-    counts?.accounts == null
-      ? null
-      : c.provider === 'stripe'
-        ? `${number(counts.accounts)} customers, ${number(counts.invoices ?? 0)} invoices, ${number(counts.cancelled ?? 0)} cancelled`
-        : `${number(counts.accounts)} companies, ${number(counts.tickets ?? 0)} tickets`;
-  return (
-    <ConnectorShell
-      name={info.name}
-      badge={
-        c.last_error ? (
-          <Badge tone="danger">Sync failed</Badge>
-        ) : (
-          <Badge tone="success" dot>
-            Connected
-          </Badge>
-        )
-      }
-    >
-      <p className="text-slate-700">
-        {c.label}
-        {' · '}
-        {c.last_synced_at
-          ? `Last synced ${date(c.last_synced_at)}`
-          : 'Not synced yet'}
-        {summary && ` · ${summary}`}
-      </p>
-      {c.last_match && (
-        <p className="mt-1">
-          Matched {number(c.last_match.matched)} of{' '}
-          {number(c.last_match.stripe_accounts)} customers (
-          {percent(c.last_match.rate)}) to HubSpot companies by email domain.
-          Unmatched customers keep billing data only.
-        </p>
-      )}
-      {c.last_error && (
-        <Alert tone="danger" className="mt-2">
-          {c.last_error}
-        </Alert>
-      )}
-      {canManage && c.provider === 'hubspot' && <HubSpotSettings c={c} />}
-      {canManage && c.provider === 'stripe' && (
-        <MatchWithHubSpot
-          c={c}
-          hubspot={all.filter((x) => x.provider === 'hubspot')}
-        />
-      )}
-      <Notice error={sync.error || remove.error} />
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {canManage && (
-          <Button
-            size="sm"
-            loading={sync.isPending}
-            onClick={() => sync.mutate(undefined)}
-          >
-            Sync now
-          </Button>
-        )}
-        {c.last_source_id && (
-          <ButtonLink
-            size="sm"
-            variant="primary"
-            to={`/app/sources/${c.last_source_id}`}
-          >
-            Train from this data <ArrowRight className="size-3.5" />
-          </ButtonLink>
-        )}
-        {canManage && (
-          <Button
-            size="sm"
-            variant="ghost"
-            loading={remove.isPending}
-            onClick={() => {
-              if (
-                window.confirm(
-                  `Disconnect ${c.label}? Synced data stays; daily checks on it pause.`,
-                )
-              )
-                remove.mutate(undefined);
-            }}
-          >
-            Disconnect
-          </Button>
-        )}
-      </div>
-      <p className="mt-2">
-        To check it daily: train a model from this data, make it active, then
-        pick this connection under Results → Automatic check.
-      </p>
-    </ConnectorShell>
-  );
-}
-
-const settingsOf = (id: string) => (body: Record<string, unknown>) =>
-  request<Connection>(`/api/v1/connections/${id}/settings`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-/** HubSpot has no standard churn field, so an admin picks the date property that records it. */
-function HubSpotSettings({ c }: { c: Connection }) {
-  const properties = useResource<{ name: string; label: string }[]>(
-    `/api/v1/connections/${c.id}/properties`,
-  );
-  const save = useAction(settingsOf(c.id));
-  const write = useAction<Connection, boolean>((enabled) =>
-    request(`/api/v1/connections/${c.id}/write`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled, confirm: enabled }),
-    }),
-  );
-  return (
-    <div className="mt-3 space-y-3">
-      <Field
-        label="Which company date records churn?"
-        hint="Holdfast never guesses churn. Without this, HubSpot data can be scored but not trained on."
-      >
-        <Select
-          value={c.churn_property ?? ''}
-          disabled={properties.isLoading || save.isPending}
-          onChange={(e) =>
-            save.mutate({ churn_property: e.target.value || null })
-          }
-        >
-          <option value="">Not set</option>
-          {properties.data?.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Checkbox
-        checked={c.write_enabled}
-        disabled={write.isPending}
-        onChange={(on) => {
-          if (
-            !on ||
-            window.confirm(
-              'Allow approved plays to create tasks in HubSpot? Nothing is written until a play is approved.',
-            )
-          )
-            write.mutate(on);
-        }}
-        description="Approved plays become HubSpot tasks on the matching companies. The token needs the tasks write scope."
-      >
-        Create tasks for approved plays
-      </Checkbox>
-      <Notice error={properties.error || save.error || write.error} />
-    </div>
-  );
-}
-
-function MatchWithHubSpot({
-  c,
-  hubspot,
-}: {
-  c: Connection;
-  hubspot: Connection[];
-}) {
-  const save = useAction(settingsOf(c.id));
-  if (!hubspot.length) return null;
-  return (
-    <div className="mt-3">
-      <Field
-        label="Add HubSpot companies and tickets"
-        hint="Customers are matched to companies by email domain on each sync; personal mailboxes never match."
-      >
-        <Select
-          value={c.enrich_connection_id ?? ''}
-          disabled={save.isPending}
-          onChange={(e) =>
-            save.mutate({ enrich_connection_id: e.target.value || null })
-          }
-        >
-          <option value="">Billing only</option>
-          {hubspot.map((h) => (
-            <option key={h.id} value={h.id}>
-              Match with {h.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Notice error={save.error} />
     </div>
   );
 }

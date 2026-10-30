@@ -178,12 +178,21 @@ rules).
 **Settings** holds the account, service status, the privacy policy, data retention, usage,
 workspace memory and (for owners and admins) the audit log.
 
-**Connectors:** Stripe and HubSpot are live on Data sources (keys entered once, sync status and
-counts, Sync now, Train from this data, Disconnect; admins only manage them). The HubSpot card
-asks which company date records churn and can allow task creation; the Stripe card can match
-with HubSpot and shows the match rate. Plays can be delivered as HubSpot tasks when a connection
-allows it. Results → Automatic check lists live connections separately from saved sources.
-Salesforce, Intercom and Zendesk still show as "Coming soon".
+**Connectors** (Data sources → Connectors, also linked from the Data page as "Connect billing or
+CRM"): grouped as **Billing** (Razorpay, Zoho Billing, Stripe) and **CRM and support** (Zoho CRM,
+HubSpot). Each card has a collapsed connect form (one key for Stripe/HubSpot; key ID + secret for
+Razorpay; region, client ID, client secret and one-time code for Zoho), then sync status and
+counts, Sync now, Train from this data and Disconnect; admins only manage them. CRM cards ask
+which date records churn and can allow task creation; billing cards can match with a CRM and
+show the match rate and any sync notes. Plays can be delivered as tasks in any CRM that allows
+it. Salesforce, Freshdesk/Freshsales, Chargebee, Intercom and Zendesk show as "Coming soon".
+
+**Connector guide** (`/app/guides/connectors`, Advanced → Connector guide, and "Setup guide" /
+"Step-by-step guide" links on every connector card): step-by-step instructions per provider
+(where to create the key, exact scopes, region, revoking access), matching, daily checks and a
+troubleshooting table of Holdfast's real error messages. Anchors: `#razorpay`, `#zoho`,
+`#zoho-billing`, `#zoho-crm`, `#stripe`, `#hubspot`. The workspace shell scrolls to `#anchors`
+after lazy pages load.
 
 **Email digest:** Settings → Email digest lets each person turn on an email after every
 automatic check and send themselves a test. Results links to it. Slack is still "Coming soon".

@@ -19,6 +19,7 @@ import {
   HeartHandshake,
   Target,
   BookOpen,
+  LifeBuoy,
   Radar,
   BarChart3,
   Check,
@@ -129,6 +130,7 @@ const ADVANCED: [string, string, LucideIcon][] = [
   ['/app/analyses', 'Analyses', BarChart3],
   ['/app/playbooks', 'Playbooks', BookOpen],
   ['/app/sources', 'Connectors & sources', Plug],
+  ['/app/guides/connectors', 'Connector guide', LifeBuoy],
   ['/app/jobs', 'Jobs', Activity],
   ['/app/settings', 'Settings', Settings2],
 ];

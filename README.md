@@ -25,9 +25,11 @@ For assistant requests, add the credentials/model you already verified to `apps/
 Use `apps/api/.env.example` as a reference; do not overwrite your existing `.env`.
 Upload, training and scoring work without provider credentials.
 
-To connect Stripe for daily data, run `pnpm setup:connectors` once (it saves an encryption key to
-`apps/api/.env`), restart the API and worker, then connect Stripe on the Data sources page. See
-[the connector notes](docs/backend.md#stripe-as-a-live-daily-feed-october-30).
+To connect a billing system or CRM for daily data (Razorpay, Zoho Billing, Zoho CRM, Stripe or
+HubSpot), run `pnpm setup:connectors` once (it saves an encryption key to `apps/api/.env`),
+restart the API and worker, then connect on Data sources → Connectors. The in-app Connector guide
+(`/app/guides/connectors`) has the step-by-step setup for each provider; backend details are in
+[the connector notes](docs/backend.md#indian-billing-and-crm-razorpay-zoho-billing-zoho-crm-october-30).
 
 Run these in **two separate terminals** from the project root:
 

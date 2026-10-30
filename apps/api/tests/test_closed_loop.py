@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import httpx
 import numpy as np
+import pandas as pd
 import pytest
 from cryptography.fernet import Fernet
 from pydantic import SecretStr
@@ -13,7 +14,7 @@ from sqlmodel import Session
 from customer_intelligence.core.errors import WorkflowError
 from customer_intelligence.models.connection import Connection
 from customer_intelligence.schemas.workflow import ScoreRequest
-from customer_intelligence.services import connectors, monitoring
+from customer_intelligence.services import connectors, monitoring, sources
 from customer_intelligence.services.scoring import read_customers, read_score, score_dataset
 
 
@@ -224,8 +225,23 @@ def test_approved_play_creates_a_task_per_hubspot_company(backend, monkeypatch):
     monkeypatch.setattr(connectors, "transport", httpx.MockTransport(hubspot))
     with session_for(backend) as session:
         secret = connectors._fernet(settings).encrypt(b"pat-na1-abc").decode()
+        # Tasks go only to companies the CRM's own sync returned.
+        synced = sources._save(
+            settings,
+            "CRM",
+            "hubspot",
+            {
+                "accounts": pd.DataFrame(
+                    {"account_id": ["101", "202"], "created_at": ["2025-01-01", "2025-01-01"]}
+                )
+            },
+        )
         connection = Connection(
-            provider="hubspot", label="CRM", secret_ciphertext=secret, write_enabled=True
+            provider="hubspot",
+            label="CRM",
+            secret_ciphertext=secret,
+            write_enabled=True,
+            last_source_id=UUID(synced["id"]),
         )
         session.add(connection)
         session.commit()

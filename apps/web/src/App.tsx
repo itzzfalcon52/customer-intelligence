@@ -64,6 +64,10 @@ const Copilot = page(() => import('./workspace/pages/Copilot'), 'Copilot');
 const Inbox = page(() => import('./workspace/pages/Inbox'), 'Inbox');
 const Jobs = page(() => import('./workspace/pages/Manage'), 'Jobs');
 const Sources = page(() => import('./workspace/pages/Sources'), 'Sources');
+const ConnectorGuide = page(
+  () => import('./workspace/pages/ConnectorGuide'),
+  'ConnectorGuide',
+);
 const Playbooks = page(
   () => import('./workspace/pages/Playbooks'),
   'Playbooks',
@@ -187,6 +191,7 @@ export default function App() {
           <Route path="jobs" element={<Jobs />} />
           <Route path="sources" element={<Sources />} />
           <Route path="sources/:id" element={<SourceDetail />} />
+          <Route path="guides/connectors" element={<ConnectorGuide />} />
           <Route path="playbooks" element={<Playbooks />} />
           <Route path="monitoring" element={<Monitoring />} />
           <Route path="team" element={<TeamPage />} />

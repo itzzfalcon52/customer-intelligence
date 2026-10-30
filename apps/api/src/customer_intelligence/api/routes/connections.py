@@ -16,10 +16,12 @@ Config = Annotated[Settings, Depends(get_settings)]
 
 class ConnectionCreate(BaseModel):
     model_config = {"extra": "forbid"}
-    provider: Literal["stripe", "hubspot"]
+    provider: Literal["stripe", "razorpay", "zoho_billing", "hubspot", "zoho_crm"]
     label: str = Field(min_length=1, max_length=80)
-    # SecretStr keeps the credential out of reprs, logs and validation errors.
-    secret: SecretStr = Field(min_length=8, max_length=500)
+    # SecretStr keeps credentials out of reprs, logs and validation errors.
+    # Stripe and HubSpot send one key; Razorpay and Zoho send named fields.
+    secret: SecretStr | None = Field(default=None, min_length=8, max_length=500)
+    fields: dict[str, SecretStr] | None = Field(default=None, max_length=8)
 
 
 @router.get("")
@@ -32,8 +34,16 @@ def list_connections(session: DB, settings: Config) -> dict:
 
 @router.post("", status_code=201)
 def create(request: ConnectionCreate, session: DB, settings: Config) -> dict:
+    fields = {
+        key[:40]: value.get_secret_value()[:1000] for key, value in (request.fields or {}).items()
+    }
     return connectors.create(
-        session, settings, request.provider, request.label, request.secret.get_secret_value()
+        session,
+        settings,
+        request.provider,
+        request.label,
+        request.secret.get_secret_value() if request.secret else None,
+        fields,
     )
 
 
