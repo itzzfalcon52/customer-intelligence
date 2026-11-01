@@ -34,14 +34,18 @@ issues on the first `docker compose build`.
 ssh ubuntu@<static-ip>
 curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker ubuntu && exit   # log back in afterwards
-git clone <your-repo-url> customer-intelligence && cd customer-intelligence
+# Private repository: give the server a read-only deploy key.
+ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519 && cat ~/.ssh/id_ed25519.pub
+# GitHub → repository → Settings → Deploy keys → Add deploy key (leave "Allow write access" off)
+git clone git@github.com:<owner>/customer-intelligence.git && cd customer-intelligence
 ```
 
 ## 3. Configure
 
 ```sh
 cp deploy/.env.production.example deploy/.env
-nano deploy/.env    # set DOMAIN, DATABASE_URL, both secrets (openssl rand -hex 32), Nebius key
+nano deploy/.env    # DOMAIN, DATABASE_URL, both secrets (openssl rand -hex 32), Nebius key,
+                    # CI_CREDENTIALS_KEY (openssl rand -base64 32 | tr '+/' '-_'), optional Resend
 chmod 600 deploy/.env
 ```
 

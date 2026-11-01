@@ -1,8 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import Field, HttpUrl, SecretStr
+from pydantic import Field, HttpUrl, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 API_DIRECTORY = Path(__file__).resolve().parents[3]
@@ -66,6 +66,12 @@ class Settings(BaseSettings):
     resend_api_key: SecretStr | None = None
     email_from: str | None = Field(default=None, max_length=200)
     resend_api_base: str = "https://api.resend.com"
+
+    @field_validator("credentials_key", "resend_api_key", "email_from", mode="before")
+    @classmethod
+    def blank_is_unset(cls, value: Any) -> Any:
+        # Deployment templates pass optional settings as empty strings; empty means "off".
+        return None if isinstance(value, str) and not value.strip() else value
 
     model_config = SettingsConfigDict(
         env_file=(PROJECT_DIRECTORY / "apps/backend/.env", API_DIRECTORY / ".env"),

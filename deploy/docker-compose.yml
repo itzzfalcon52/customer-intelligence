@@ -38,6 +38,10 @@ services:
       CI_MAX_UPLOAD_MB: ${CI_MAX_UPLOAD_MB:-200}
       CI_MAX_ROWS: ${CI_MAX_ROWS:-1000000}
       CI_WORKER_TIMEOUT_SECONDS: ${CI_WORKER_TIMEOUT_SECONDS:-1800}
+      # Connectors (encryption key for stored credentials) and email digests; empty = off.
+      CI_CREDENTIALS_KEY: ${CI_CREDENTIALS_KEY:-}
+      CI_RESEND_API_KEY: ${CI_RESEND_API_KEY:-}
+      CI_EMAIL_FROM: ${CI_EMAIL_FROM:-}
     volumes:
       - app-data:/data
     healthcheck:
