@@ -25,6 +25,7 @@ test-results/
 apps/backend/src/generated/
 
 # Local working notes (not published)
+HANDOFF.md
 CLAUDE.md
 AGENTS.md
 .claude/
