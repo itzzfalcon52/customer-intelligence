@@ -111,4 +111,4 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env run --rm back
 ## When one server is no longer enough
 
 Move metadata to Postgres and artifacts to object storage, then run several API and worker
-containers. That redesign is described as planned work in `docs/product-strategy.md`.
+containers. That redesign is planned work.

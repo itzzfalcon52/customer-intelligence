@@ -60,7 +60,6 @@ describe the earlier marketing build and are kept only as history.
     and next-step card.
   - Pages are in `workspace/pages/`: Overview, Data, Churn, Models, Scores, Plays,
     Investigate, Analyses, Copilot, Manage.
-- **Design rules:** `apps/web/DESIGN.md`.
 
 The Manrope files in `public/fonts/` are no longer referenced.
 

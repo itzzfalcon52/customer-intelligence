@@ -214,4 +214,3 @@ automatic check and send themselves a test. Results links to it. Slack is still 
 - **Old paths:** every earlier path (`/app/datasets…`, `/app/experiments…`, `/app/setup…`,
   `/app/accounts…`, `/app/insights…`, `/app/model…`, `/app/customers…`, `/app/retention`,
   `/app/copilot`, `/app/connections`) redirects, keeping its ID and query string.
-- **Visual system:** `apps/web/DESIGN.md`. Product brief: `apps/web/PRODUCT.md`.
