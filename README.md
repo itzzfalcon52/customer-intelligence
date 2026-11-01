@@ -156,7 +156,7 @@ sequenceDiagram
   ML-->>W: Ranks, drift (PSI), measured accuracy and lift for past batches
   W->>AI: Computed evidence only (pseudonymous labels, no raw rows)
   AI-->>W: Draft brief and reasons
-  W->>W: Verify every number and claim; withhold anything ungrounded
+  W->>W: Verify every number and claim, withhold anything ungrounded
   W->>T: Inbox digest, optional email and Slack, renewal summary
   W-->>T: Retraining proposal when monitoring raises an alert (admin approves)
 ```
@@ -290,8 +290,8 @@ customer-intelligence/
 XGBoost.
 
 ```sh
-git clone https://github.com/itzzfalcon52/customer-intelligence.git
-cd customer-intelligence
+git clone https://github.com/itzzfalcon52/holdfast.git
+cd holdfast
 pnpm install
 pnpm setup:python        # creates apps/api/.venv with a pinned uv
 pnpm setup:backend       # writes apps/backend/.env secrets; add your Neon DATABASE_URL first
