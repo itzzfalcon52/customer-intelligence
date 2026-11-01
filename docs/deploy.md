@@ -73,8 +73,11 @@ Caddy requests the HTTPS certificate automatically once DNS points at the server
 
 ## 6. Backups
 
-Create a bucket (R2 or S3), fill the `BACKUP_*` and access-key lines in `deploy/.env`, install
-the AWS CLI (`sudo apt install -y awscli`) and schedule the nightly script:
+The simplest safety net is Lightsail's **automatic snapshots** (instance → Snapshots tab), which
+copy the whole disk daily, Docker volumes included, for a few cents a month. For an off-server
+copy, create a bucket (R2 or S3), fill the `BACKUP_*` and access-key lines in `deploy/.env`, install
+the AWS CLI (`sudo snap install aws-cli --classic`; Ubuntu 24.04 has no `awscli` apt package)
+and schedule the nightly script:
 
 ```sh
 crontab -e
